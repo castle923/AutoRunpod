@@ -74,7 +74,10 @@ def run_query(api_key: str, query: str, variables: dict | None = None) -> dict:
     request = urllib.request.Request(
         f"{API_ENDPOINT}?api_key={api_key}",
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; runpod-pod-status-script/1.0)",
+        },
         method="POST",
     )
     try:
