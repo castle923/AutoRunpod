@@ -79,8 +79,18 @@ def main() -> None:
     )
     parser.add_argument(
         "--image-name",
-        required=True,
+        default=None,
         help="Container image to deploy on the pod (e.g. a runpod/pytorch base image).",
+    )
+    parser.add_argument(
+        "--template-id",
+        default=None,
+        help="RunPod template ID to deploy from (e.g. from a Hub template URL). Either this or --image-name is required.",
+    )
+    parser.add_argument(
+        "--support-public-ip",
+        action="store_true",
+        help="Request a pod with a public IP instead of only proxied ports.",
     )
     parser.add_argument("--gpu-count", type=int, default=1, help="Number of GPUs to attach.")
     parser.add_argument("--volume-gb", type=int, default=50, help="Persistent volume size in GB.")
@@ -122,6 +132,9 @@ def main() -> None:
     if not args.api_key and not args.dry_run:
         sys.exit("Error: no API key provided. Set RUNPOD_API_KEY or pass --api-key.")
 
+    if not args.image_name and not args.template_id:
+        sys.exit("Error: one of --image-name or --template-id is required.")
+
     env_vars = []
     for item in args.env:
         if "=" not in item:
@@ -131,7 +144,6 @@ def main() -> None:
 
     deploy_input: dict = {
         "name": args.name,
-        "imageName": args.image_name,
         "gpuTypeId": args.gpu_type,
         "gpuCount": args.gpu_count,
         "volumeInGb": args.volume_gb,
@@ -141,6 +153,12 @@ def main() -> None:
         "ports": args.ports,
         "env": env_vars,
     }
+    if args.image_name:
+        deploy_input["imageName"] = args.image_name
+    if args.template_id:
+        deploy_input["templateId"] = args.template_id
+    if args.support_public_ip:
+        deploy_input["supportPublicIp"] = True
     if args.data_center_id:
         deploy_input["dataCenterId"] = args.data_center_id
 
