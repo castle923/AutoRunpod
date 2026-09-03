@@ -1,0 +1,357 @@
+{playboy bunny, bunny girl costume, high-leg, {{meshed| } pantyhose| bare legs}, red tie, {rabbit ears| }, |office lady, collared shirt, {long sleeves|short sleeves|rolled up sleeves}, black skirt, pencil-skirt, {{black|brown} pantyhose|{black|brown} stockings| black thighighs| black kneehighs|black socks},|
+
+santa girl, santa costume, red costume, {sleeveless|off shoulder, bare shoulders|detached sleeves, off shoulder}, miniskirt, {bell choker|leaf choker|red choker}, {tight skirt, pencil-skirt|skirt set|round skirt|bikini skirt, {white panties|red panties}}, {white thighighs, {garter straps| }|white kneehighs|white socks},|
+
+nun, habit, {black habit|white habit|black habit, white collar},
+{veil, white coif|veil, wimple|headband, white headband},
+{cross necklace|crucifix, jewelry|rosary},
+{long sleeves, long dress|short sleeves, {midi skirt|miniskirt}|sleeveless, {midi skirt|miniskirt}},
+{{black|white|grey} pantyhose|{black|white} thighhighs|black kneehighs|bare legs},|
+
+{naked, nude| }, fake animal ears, dog ears, paw gloves, paw shoes, {animal collar| animal collar, leash}, |
+
+bikini, micro bikini, string bikini, side-tie bikini bottom, front-tie bikini top, {high-leg bikini| }, {gold bikini| }, |
+
+dancer, belly dancer, {flowing veil, semi-transparent fabric|sheer chiffon, translucent cloth|organza, see-through fabric},
+{harem pants, sheer harem pants|chiffon skirt, layered skirt, slit skirt|wrap skirt, transparent wrap},
+{bare midriff, crop top, sheer top|bandeau, strapless, sheer bralette|halter top, sheer halter},
+{coin belt, hip scarf|jeweled belt, waist chain|beaded belt},
+{arm veil, sheer arm drape|armlet, upper arm cuff|wrist cuffs, bangles},
+{{gold|silver} jewelry, necklace|{chandelier earrings|drop earrings}, necklace|body chain, {gold|silver}},
+{{bare feet, anklet|heeled sandals, ankle strap|strappy sandals}},
+{flowing hair, hair veil|braided hair, hair jewels|updo, hair ornament},|
+
+yukata, {floral print|geometric pattern|solid color} yukata,
+{{red|blue|pink|white|black} yukata, {white|gold|navy} obi},
+{off shoulder, bare shoulders|standing collar|v-neck},
+{bare feet, geta|sandals, tabi socks|barefoot},
+{hair ornament, kanzashi|floral hair pin|hair ribbon, updo},|
+
+cheerleader,
+{red|blue|white|black} {top, skirt set|uniform},
+{sleeveless crop top|collarless shirt, tied front}, pleated miniskirt,
+{bare legs|white thighhighs|white kneehighs|white socks},
+{sneakers|ankle boots}, {pom-pom| },
+{hair ribbon|side ponytail|twin tails, hair ribbon}|
+
+maid, {french maid|gothic maid|cafe maid},
+{maid headdress|frilly headband|mini maid cap},
+{frilly apron, {black dress, white apron|white dress, black apron|navy dress, white apron}|pinafore apron, {short sleeves|long sleeves|puff sleeves}},
+{black thighhighs|white thighhighs|black kneehighs|white kneehighs|black pantyhose},
+{mary janes|heeled pumps|loafers},|
+naked, completely nude, rating:nsfw|
+
+buruma, gym uniform, {white shirt, buruma|tank top, buruma|gym shirt, buruma},
+{red buruma|blue buruma|black buruma|navy buruma},
+{white socks, sneakers|bare legs, sneakers|knee socks, sneakers},
+{(tight buruma:1.2)|spandex buruma|bloomers}|
+
+sailor uniform, {navy sailor uniform|black sailor uniform|white sailor uniform},
+{red ribbon|blue ribbon|white ribbon|black ribbon}, sailor collar,
+{pleated miniskirt|pleated skirt, knee-length|pleated skirt, short},
+{black thighhighs|white thighhighs|navy kneehighs|white kneehighs|black socks|white socks},
+{loafers|uwabaki|mary janes}|
+
+wedding dress, {ball gown|mermaid dress|a-line dress|mini wedding dress},
+{strapless|off shoulder|v-neck, long sleeves|sweetheart neckline},
+{cathedral veil|elbow veil|birdcage veil| },
+{white gloves|long gloves| },
+{bouquet|holding bouquet| },
+{white thighhighs|white stockings|bare legs}|
+
+witch, {pointed hat|witch hat, wide brim|mini witch hat| },
+{black cape, black dress|purple dress, dark cape|gothic lolita, witch hat|dark green dress, cloak},
+{broomstick|spell book, grimoire|magic wand| },
+{buckle boots|heeled boots|platform boots},
+{{black|purple} thighhighs|{black|dark} stockings|bare legs}|
+
+china dress, cheongsam,
+{{red|black|blue|white|gold} cheongsam, {floral embroidery|dragon embroidery|geometric pattern|solid color}},
+{high collar, sleeveless|mandarin collar, short sleeves|mandarin collar, long sleeves},
+{high slit, {bare legs|thighhighs|stockings}|low slit, {thighhighs|kneehighs}},
+{heeled pumps|strappy heels|platform heels}
+
+forest elf, elf ears, pointy ears,
+{leaf armor, {green|brown} leather armor, bare midriff|vine dress, floral embroidery, off shoulder|ranger outfit, hooded cloak, {short sleeves|sleeveless}}},
+
+{(standing:{0.9|1.0|1.1}),
+{3::{legs together|(legs apart:{0.85|0.95|1.05}), {shoulder width apart| }|(contrapposto:{0.8|0.9|1.0}), weight on one leg|(standing on one leg:{0.8|0.9|1.0}), {leg up, {knee bent|leg extended}|knee up}|crossed legs|(standing on tiptoes:{0.85|0.95|1.05}), {heels up| }}},
+{2::{arms at sides|(hands on hips:{0.85|0.95|1.05})|hand on own hip|(arms behind back:{0.8|0.9|1.0}), {hands clasped| }|(arms behind head:{0.8|0.9|1.0})|(arms crossed:{0.8|0.9|1.0})|(stretching, arms up:{0.85|0.95|1.05}), {both arms up|one arm up}}|{1-2$$(hand on own chest:{1.05|1.15})|(hand in own hair:{1.05|1.15})|(hand on own cheek:{1.05|1.15})|(hand up, waving:{1.0|1.1})|(adjusting hair:{1.05|1.15})|(hand near mouth:{1.05|1.15})}},
+{straight posture|leaning forward|(twisted torso:{0.8|0.9|1.0}), looking back|hip tilt, leaning to the side|(arched back:{0.75|0.85|0.95})|slouching| },
+{(looking at viewer:{0.75|0.85|0.95})|looking to the side|looking away, {looking up|looking down}|(head tilt:{0.9|1.0|1.1}), {looking at viewer| }|closed eyes},
+{full body|cowboy shot|upper body|(from side:{0.7|0.8|0.9})|(from below:{0.65|0.75|0.85})|from front| },|
+
+(sitting:{0.9|1.0|1.1}),
+{3::{sitting {on chair|on bed|on floor|on couch|on stool|on windowsill|on desk, dangling legs}|(wariza:{0.8|0.9|1.0})|(yokozuwari:{0.8|0.9|1.0}), sitting sideways|(indian style:{0.85|0.95|1.05})|crossed legs, {ankles crossed| }|knees up, {(hugging own legs:{0.85|0.95})|legs apart}|legs out, {feet up|soles visible}|one leg up, foot on seat}},
+{2::{hands on own knees|(hands between legs:{0.85|0.95|1.05})|hands on lap|(arms behind back:{0.8|0.9|1.0}), arm support, leaning back|one hand on floor, leaning to the side|(arms crossed:{0.8|0.9|1.0})|hands gripping edge}|{1-2$$(hand on own thigh:{1.05|1.15})|(hand on own cheek:{1.05|1.15}), elbow on knee|(hand in own hair:{1.05|1.15})|(hand on chin:{1.05|1.15}), thinking pose}},
+{leaning forward, {elbows on knees| }|leaning back, {arm support| }|(arched back:{0.75|0.85|0.95})|slouching, hunched over|upright, straight back},
+{(looking at viewer:{0.75|0.85|0.95})|looking up|looking down|(head tilt:{0.9|1.0|1.1})|looking to the side, {closed eyes| }},
+{(from side:{0.7|0.8|0.9})|(from above:{0.65|0.75|0.85})|from front|(dutch angle:{0.6|0.7|0.8})|full body| },|
+
+(kneeling:{0.9|1.0|1.1}),
+{3::{(seiza:{0.8|0.9|1.0}), {sitting on heels| }|kneeling, knees together|kneeling, (knees apart, spread knees:{0.85|0.95|1.05})|(one knee up:{0.85|0.95|1.05}), {arm on knee| }|kneeling, (wariza:{0.8|0.9|1.0})|kneeling on toes|kneeling, leaning back on hands}},
+{2::{hands on own thighs|(arms behind back:{0.8|0.9|1.0})|hands on floor, leaning forward|arms up, {both arms|one arm}|(own hands together:{0.9|1.0}), praying|hand on own chest}|{1-2$$(one arm reaching forward:{1.05|1.15})|(hand on own knee:{1.05|1.15})|(hand in own hair:{1.05|1.15})|(palms up:{1.05|1.15})}},
+{upright, straight back|leaning forward, {head down|bowing}|leaning back, (arched back:{0.75|0.85|0.95})|head back, looking up|curled forward},
+{(looking at viewer:{0.75|0.85|0.95})|(looking up at viewer:{0.8|0.9|1.0})|looking down|closed eyes|looking to the side},
+{from front|(from side:{0.7|0.8|0.9})|(from above:{0.65|0.75|0.85})|full body|(from below:{0.65|0.75|0.85})| },|
+
+(lying:{0.9|1.0|1.1}),
+{3::{(on back:{0.85|0.95|1.05}), {arms above head|arms at sides}|(on side:{0.85|0.95|1.05}), {curled up|legs extended}|(on stomach:{0.85|0.95|1.05}), {legs up, feet up|kicking feet}|(upside-down:{0.7|0.8|0.9}), head back|(lying on lap:{0.8|0.9|1.0})}},
+{legs up, {knees bent|legs straight up}|knees up, bent legs|legs together|(legs apart:{0.85|0.95|1.05})|crossed legs|one leg up, one leg bent|legs folded to the side},
+{2::{arms up|(spread arms:{0.85|0.95|1.05})|hand on own stomach|arms at sides|(head rest, arm support:{0.85|0.95}), propped up on elbow|(hugging own knees:{0.85|0.95})|one arm over face}|{1-2$$(hand near face:{1.05|1.15})|(hand in own hair:{1.05|1.15})|(fingers spread:{1.05|1.15})|(arm dangling:{1.05|1.15})}},
+{head back|(looking at viewer:{0.75|0.85|0.95})|(head tilt:{0.9|1.0|1.1})|face down, hidden face|turned head, looking to the side},
+{(hair spread out:{0.9|1.0|1.1})|(hair fanned out:{0.9|1.0|1.1})| },
+{(from above:{0.65|0.75|0.85})|(from side:{0.7|0.8|0.9})|(top-down:{0.6|0.7|0.8})|(foreshortening:{0.7|0.8|0.9})|full body| },|
+
+{3::(squatting:{0.85|0.95|1.05})|(crouching:{0.85|0.95|1.05})|(full squat:{0.8|0.9|1.0}), low crouch|crouching down, compact pose},
+{(knees apart, spread knees:{0.85|0.95|1.05})|knees together|one knee up, one knee down|wide stance, {balanced| }},
+{2::{(hands between legs:{0.85|0.95|1.05})|hands on own knees|(arms wrapped around legs:{0.85|0.95})|arms at sides, balancing|one hand on ground|arms crossed on knees}|{1-2$$(hand on own cheek:{1.05|1.15})|(hand in own hair:{1.05|1.15})|(fingers on ground:{1.05|1.15})|(hand reaching down:{1.05|1.15})}},
+{on tiptoes, heels up|flat feet|leaning forward|leaning back| },
+{(looking up at viewer:{0.8|0.9|1.0})|(looking at viewer:{0.75|0.85|0.95})|looking to the side|looking down|(head tilt:{0.9|1.0|1.1})},
+{(from below:{0.65|0.75|0.85})|from front|(from side:{0.7|0.8|0.9})|full body|close-up, knees| },|
+
+(leaning:{0.9|1.0|1.1}),
+{3::{(back against wall:{0.85|0.95|1.05})|leaning forward, (hands on wall:{0.9|1.0|1.1})|leaning on railing|(leaning against wall:{0.85|0.95}), one leg up, foot on wall|leaning on table, (bent over:{0.8|0.9|1.0})|shoulder against wall|leaning back on desk|leaning on windowsill}},
+{2::{(arms crossed:{0.8|0.9|1.0})|(arms behind back:{0.8|0.9|1.0})|one arm raised, hand on wall|hands flat on surface|hand on own hip|(arms behind head:{0.8|0.9|1.0})}|{1-2$$(one hand near face:{1.05|1.15})|(hand in own hair:{1.05|1.15})|(fingers on wall:{1.05|1.15})|(arm dangling:{1.05|1.15})}},
+{(legs crossed:{0.85|0.95|1.05})|one leg bent|legs apart|ankles crossed|weight on one leg| },
+{(looking at viewer:{0.75|0.85|0.95})|looking to the side|looking away|looking down|(head tilt:{0.9|1.0|1.1}), {looking up| }},
+{(from side:{0.7|0.8|0.9})|cowboy shot|(from below:{0.65|0.75|0.85})|full body|upper body| },|
+
+{3::(walking:{0.9|1.0|1.1})|(running:{0.9|1.0|1.1}), (dynamic pose:{1.1|1.2|1.3})|jogging|striding|marching|skipping},
+{(mid-stride:{0.95|1.05|1.15}), one foot forward|walking toward viewer|walking away, (from behind:{0.7|0.8|0.9}), {looking back| }|leaning forward, sprinting|relaxed gait, slow steps|mid-step, {foot raised| }},
+{2::{arms swinging|one arm forward, one arm back|arms out to the sides|arms back, running pose|(hands behind back:{0.8|0.9|1.0})|arms up}|{1-2$$(hand holding hat:{1.05|1.15})|(hand in own hair:{1.05|1.15})|(hand reaching forward:{1.05|1.15})|(arm across chest:{1.05|1.15})}},
+{(looking back over shoulder:{0.85|0.95|1.05})|(looking at viewer:{0.75|0.85|0.95})|looking forward|looking to the side|head down| },
+{(motion lines:{0.7|0.8|0.9}), dynamic|(action pose:{1.0|1.1|1.2})|(floating hair:{1.05|1.15}), wind| },
+{(from behind:{0.7|0.8|0.9})|(from side:{0.7|0.8|0.9})|full body|(dutch angle:{0.6|0.7|0.8})|(from below:{0.65|0.75|0.85})| },|
+
+{3::(bent over:{0.8|0.9|1.0})|leaning forward, (bent over:{0.8|0.9|1.0})|(arched back:{0.75|0.85|0.95}), leaning forward|bending down},
+{hands on own knees|hands on own thighs|hands on floor|hands on table|(top-down bottom-up:{0.7|0.8|0.9})|(hands behind back:{0.8|0.9|1.0}), bent forward|one hand on knee, one arm out},
+{legs straight|knees slightly bent|(legs apart:{0.85|0.95|1.05})|legs together|one leg back, {extended| }},
+{2::{(looking back:{0.85|0.95}), (looking at viewer:{0.75|0.85|0.95})|head down, hair falling forward|looking to the side|(looking up at viewer:{0.8|0.9|1.0})}|{1-2$$(hair over shoulder:{1.05|1.15})|(hand tucking hair:{1.05|1.15})|(head tilt:{1.0|1.1})}},
+{(arched back:{0.75|0.85|0.95})|curved spine|straight back| },
+{(from behind:{0.7|0.8|0.9})|(from side:{0.7|0.8|0.9})|(from below:{0.65|0.75|0.85})|(from above:{0.65|0.75|0.85})|full body| },|
+
+{3::(jumping:{0.9|1.0|1.1})|(mid-air:{0.85|0.95|1.05})|leaping|(falling:{0.8|0.9|1.0})|(floating:{0.8|0.9|1.0}), weightless},
+{arms up, legs bent|(spread arms, spread legs:{0.85|0.95|1.05})|one leg up, arms out|tucked knees, curled up|(kicking:{0.9|1.0|1.1}), leg extended|arms back, diving forward|one arm reaching up},
+{2::{(dynamic pose:{1.1|1.2|1.3}), action pose|(foreshortening:{0.7|0.8|0.9})|(motion blur:{0.6|0.7|0.8}), dynamic angle|freeze frame, suspended}|{1-2$$(floating hair:{1.05|1.15})|(wind lift:{1.05|1.15})|(outstretched fingers:{1.05|1.15})|(toes pointed:{1.05|1.15})}},
+{(looking at viewer:{0.75|0.85|0.95})|looking up|(looking down at viewer:{0.8|0.9|1.0})|closed eyes|looking to the side},
+{(from below:{0.65|0.75|0.85})|(from above:{0.65|0.75|0.85})|full body|wide shot|(dutch angle:{0.6|0.7|0.8})| },|
+
+{3::(all fours:{0.75|0.85|0.95})|(on hands and knees:{0.8|0.9|1.0})|(crawling:{0.85|0.95|1.05})|prone, propped up on elbows},
+{(arched back:{0.75|0.85|0.95})|straight back|(top-down bottom-up:{0.7|0.8|0.9})|hips raised|low stance, chest down},
+{(legs apart:{0.85|0.95|1.05})|legs together|one knee forward|feet up, {ankles crossed| }},
+{2::{crawling toward viewer|holding still|leaning on one arm|(one hand reaching forward:{1.0|1.1})}|{1-2$$(fingers curled:{1.05|1.15})|(hair hanging down:{1.05|1.15})|(shoulder dipped:{1.05|1.15})}},
+{(looking at viewer:{0.75|0.85|0.95})|(looking up at viewer:{0.8|0.9|1.0})|head down|(looking back over shoulder:{0.85|0.95|1.05})},
+{from front|(from side:{0.7|0.8|0.9})|(from above:{0.65|0.75|0.85})|(from behind:{0.7|0.8|0.9})|full body| },|
+
+{3::(stretching:{0.9|1.0|1.1})|waking up, {(yawning:{0.85|0.95})| }|arms up, stretching, (arched back:{0.75|0.85|0.95})|morning stretch},
+{arms up, {both arms raised|(interlocked fingers:{1.0|1.1}), palms up}|one arm up, one arm across chest|(arms behind head:{0.8|0.9|1.0}), elbows out|reaching upward, {on tiptoes| }|side stretch, {leaning to the side| }},
+{(arched back:{0.75|0.85|0.95})|(twisted torso:{0.8|0.9|1.0})|leaning back, chest out|neck stretch, head tilt back},
+{standing|sitting on bed|kneeling on bed|lying, {on back| }},
+{2::{closed eyes|looking up|(looking at viewer:{0.75|0.85|0.95})|eyes half closed}|{1-2$$(messy hair:{1.05|1.15})|(hair falling:{1.05|1.15})|(shoulder exposed:{1.0|1.1})}},
+{full body|upper body|cowboy shot|(from side:{0.7|0.8|0.9})|(from below:{0.65|0.75|0.85})| },|
+
+{3::(dancing:{0.85|0.95|1.05})|(spinning:{0.85|0.95|1.05}), twirl|dance pose, (dynamic pose:{1.1|1.2|1.3})|(ballet pose:{0.8|0.9|1.0})|waltz step},
+{one leg raised, {knee bent|leg extended, (arabesque:{0.8|0.9|1.0})}|legs crossed mid-step|standing on tiptoes, {(en pointe:{0.85|0.95})| }|wide stance, lunging|jumping, mid-leap|(kicking leg up:{0.9|1.0|1.1}), high kick},
+{2::{arms up, graceful|one arm up, one arm out|arms curved overhead|(spread arms:{0.85|0.95|1.05})|hand on own hip, one arm up|hands clasped overhead}|{1-2$$(fingers extended:{1.05|1.15})|(wrist turned:{1.05|1.15})|(flowing motion:{1.05|1.15})}},
+{(arched back:{0.75|0.85|0.95})|(twisted torso:{0.8|0.9|1.0})|leaning to the side|(s-curve pose:{0.9|1.0|1.1}), body curve},
+{(motion:{0.9|1.0}), (flowing hair:{1.05|1.15})|(wind:{0.9|1.0|1.1}), skirt spread by spin| },
+{(looking at viewer:{0.75|0.85|0.95})|looking up|closed eyes|(head tilt:{0.9|1.0|1.1})|looking away},
+{full body|wide shot|(from below:{0.65|0.75|0.85})|(dutch angle:{0.6|0.7|0.8})|(from side:{0.7|0.8|0.9})| },|
+
+{3::(fighting stance:{0.85|0.95|1.05})|(martial arts pose:{0.85|0.95|1.05})|combat stance|(guard pose:{0.85|0.95})|battle pose, (dynamic pose:{1.1|1.2|1.3})},
+{{(fists raised:{0.9|1.0|1.1}), boxing guard|open palms, ready stance|one arm forward, one arm back|arms crossed in block}|{(sword stance:{0.85|0.95|1.05}), {two-handed grip|one-handed grip}|drawing weapon, (iaido stance:{0.8|0.9|1.0})|holding weapon at side}},
+{wide stance, knees bent|one leg forward, weight back|crouched low, coiled|(mid-kick:{0.9|1.0|1.1}), {high kick|roundhouse kick}|lunging forward, {punching| }},
+{2::{tense muscles, ready|leaning forward, aggressive|leaning back, defensive|(twisted torso:{0.8|0.9|1.0}), winding up}|{1-2$$(clenched fist:{1.05|1.15})|(braced shoulders:{1.05|1.15})|(feet planted:{1.05|1.15})}},
+{(looking at viewer:{0.75|0.85|0.95}), {glaring| }|looking to the side|looking forward, focused|head lowered, eyes up},
+{full body|(from below:{0.65|0.75|0.85})|(from side:{0.7|0.8|0.9})|(dutch angle:{0.6|0.7|0.8})|wide shot| },|
+
+{3::(from behind:{0.7|0.8|0.9}), (looking back:{0.85|0.95|1.05})|turning around|(looking over shoulder:{0.85|0.95|1.05})|back turned, (twisted torso:{0.8|0.9|1.0})},
+{standing, {legs together|legs apart|weight on one leg}|walking away, mid-stride|sitting, back to viewer|kneeling, back to viewer},
+{2::{arms at sides|(hands behind back:{0.8|0.9|1.0})|one hand on own shoulder|(arms crossed:{0.8|0.9|1.0})|hand on own hip|one arm raised}|{1-2$$(hand in own hair:{1.05|1.15})|(hair swept to one side:{1.05|1.15})|(fingers on nape:{1.05|1.15})}},
+{(twisted torso:{0.8|0.9|1.0}), over the shoulder|turning at the waist|head turned only|full turn, mid-rotation},
+{(looking at viewer:{0.75|0.85|0.95})|looking back|looking down|(head tilt:{0.9|1.0|1.1})|looking to the side},
+{(from behind:{0.7|0.8|0.9})|(back focus:{0.85|0.95})|full body|upper body|(from above:{0.65|0.75|0.85})| },|
+
+{3::(hugging own body:{0.85|0.95|1.05}), self-embrace|(arms crossed over chest:{0.8|0.9|1.0}), covering|shy pose, timid|(curled up:{0.85|0.95|1.05}), protective pose},
+{(arms wrapped around self:{0.9|1.0|1.1})|hands on opposite shoulders|one arm across chest, one hand on arm|(hugging own knees:{0.85|0.95|1.05}), {sitting|curled up on side}|covering self with hands|clutching own collar},
+{shoulders hunched, {inward| }|leaning forward|curled inward|knees pressed together|turned inward, {legs together| }},
+{2::{standing|sitting on floor|kneeling|crouching|lying on side}|{1-2$$(fingers gripping:{1.05|1.15})|(toes curled:{1.05|1.15})|(head lowered:{1.0|1.1})}},
+{looking down|(looking at viewer:{0.75|0.85|0.95}), {shy| }|looking away|closed eyes|(head tilt:{0.9|1.0|1.1}), peeking},
+{full body|upper body|cowboy shot|(from above:{0.65|0.75|0.85})|(from side:{0.7|0.8|0.9})| },|
+
+{3::(reaching toward viewer:{0.9|1.0|1.1})|(hand out, palm forward:{0.9|1.0|1.1})|(pointing at viewer:{0.85|0.95|1.05})|(outstretched arm:{0.9|1.0|1.1}), (foreshortening:{0.7|0.8|0.9})},
+{{one arm extended forward, {open hand|grasping hand}|both arms extended, reaching|hand reaching down toward viewer|(index finger raised:{1.0|1.1}), finger pointing}},
+{standing, leaning forward|walking forward, {mid-stride| }|sitting, leaning toward viewer|lying, arm extended upward|kneeling, reaching out},
+{2::{(foreshortening:{0.7|0.8|0.9}), (perspective:{1.05|1.15|1.25})|dynamic angle|hand closer to viewer, depth}|{1-2$$(fingers spread:{1.05|1.15})|(palm detail:{1.05|1.15})|(wrist turned:{1.05|1.15})}},
+{(looking at viewer:{0.75|0.85|0.95})|looking past viewer|(head tilt:{0.9|1.0|1.1})|eyes following hand|soft gaze},
+{(from below:{0.65|0.75|0.85})|from front|(dutch angle:{0.6|0.7|0.8})|close-up, hand|full body| },|
+
+{3::(straddling:{0.8|0.9|1.0})|(sitting astride:{0.85|0.95|1.05})|riding pose|knees on either side, straddling},
+{straddling {chair, backwards|bench|stool|lap}|kneeling astride, {knees apart| }|sitting astride, upright},
+{2::{arms resting on chair back|hands on own thighs|(arms behind back:{0.8|0.9|1.0})|hands gripping in front|arms crossed on backrest|one arm draped}|{1-2$$(hand on own hip:{1.05|1.15})|(hand in own hair:{1.05|1.15})|(chin resting on arms:{1.05|1.15})}},
+{leaning forward, {chest against backrest| }|leaning back, (arched back:{0.75|0.85|0.95})|upright posture|hunched forward},
+{(looking at viewer:{0.75|0.85|0.95})|(looking back over shoulder:{0.85|0.95|1.05})|looking down|(head tilt:{0.9|1.0|1.1})|looking to the side},
+{(from side:{0.7|0.8|0.9})|(from behind:{0.7|0.8|0.9})|cowboy shot|full body|from front| },|
+
+{3::(resting:{0.9|1.0|1.1})|dozing off|(sleeping:{0.8|0.9|1.0})|(head rest:{0.85|0.95|1.05}), arms folded|slumped forward},
+{head on own arms, {on desk|on table}|(head on hand:{0.9|1.0|1.1}), elbow propped|head tilted back, {against chair| }|(curled up:{0.85|0.95|1.05}), {on couch|on floor}|leaning on own shoulder},
+{2::{arms folded under head|one arm dangling|hands in lap|arms sprawled forward}|{1-2$$(relaxed fingers:{1.05|1.15})|(loose grip:{1.05|1.15})|(shoulder slumped:{1.05|1.15})}},
+{sitting, slouched|lying, {on side|on stomach}|kneeling, slumped forward|seated, head back},
+{(closed eyes:{0.9|1.0|1.1}), {peaceful| }|eyes half closed, drowsy|(looking at viewer:{0.75|0.85|0.95}), sleepy|face hidden in arms},
+{(from side:{0.7|0.8|0.9})|(from above:{0.65|0.75|0.85})|upper body|close-up, face|full body| },|
+
+{3::(climbing:{0.85|0.95|1.05})|(hanging:{0.85|0.95|1.05}), {from bar|from ledge}|(gripping overhead:{0.9|1.0|1.1}), arms up|pulling up},
+{both hands overhead, gripping|one hand gripping, one arm reaching|(arms extended above head:{0.9|1.0|1.1}), hanging|hands on rungs, {mid-climb| }},
+{legs dangling, {together|apart}|one knee raised, foot planted|legs pulled up, tucked|body stretched out, straight line|kicking, {one leg back| }},
+{2::{(stretched torso:{0.9|1.0|1.1}), elongated body|(arched back:{0.75|0.85|0.95}), straining|(twisted torso:{0.8|0.9|1.0}), mid-pull|tense arms, (dynamic pose:{1.1|1.2|1.3})}|{1-2$$(gripping fingers:{1.05|1.15})|(taut shoulders:{1.05|1.15})|(extended toes:{1.05|1.15})}},
+{looking up|(looking down at viewer:{0.8|0.9|1.0})|(looking at viewer:{0.75|0.85|0.95})|looking to the side|head back},
+{(from below:{0.65|0.75|0.85})|full body|(from side:{0.7|0.8|0.9})|wide shot|(dutch angle:{0.6|0.7|0.8})| },|
+
+{3::(model pose:{0.85|0.95|1.05})|(pin-up pose:{0.75|0.85|0.95})|fashion pose|posing for camera|glamour pose},
+{{(hands behind head:{0.8|0.9|1.0}), elbows out, hip out|hand on own hip, hip cocked|one hand on own hip, one hand behind head|arms raised, hands in hair|leaning forward, hands on own knees|one arm across body, hand on opposite elbow}},
+{(legs crossed:{0.85|0.95|1.05}), standing|one leg forward, toe pointed|weight on one leg, (contrapposto:{0.8|0.9|1.0})|kneeling, one knee up|sitting, legs tucked to the side|lying on side, propped up on elbow},
+{2::{(arched back:{0.75|0.85|0.95}), chest out|hip tilt, exaggerated curve|(s-curve pose:{0.9|1.0|1.1}), body line|(twisted torso:{0.8|0.9|1.0}), three-quarter view}|{1-2$$(pointed toes:{1.05|1.15})|(arched foot:{1.05|1.15})|(elongated neck:{1.05|1.15})}},
+{(looking at viewer:{0.75|0.85|0.95})|(looking over shoulder:{0.85|0.95|1.05})|looking up, chin raised|(head tilt:{0.9|1.0|1.1})|closed eyes, chin up},
+{full body|cowboy shot|(from below:{0.65|0.75|0.85})|(from side:{0.7|0.8|0.9})|upper body| }},
+
+{(expressionless:{0.9|1.0|1.1}),
+{neutral face|blank expression|calm, composed|impassive, still},
+{closed mouth|(dot mouth:{0.85|0.95})|(parted lips:{1.0|1.1})|closed mouth, relaxed},
+{(half-closed eyes:{1.0|1.1})|(narrowed eyes:{0.9|1.0})|open eyes, steady|(empty eyes:{0.75|0.85})},
+{straight eyebrows|relaxed eyebrows|(eyebrows:{0.9|1.0})| },
+{(light blush:{0.85|0.95})|(shaded face:{0.7|0.8})| },|
+
+(light smile:{1.0|1.1}), gentle expression,
+{soft smile, subtle|faint smile|warm expression|serene, content},
+{closed mouth, (smile:{0.9|1.0|1.1})|(light smile:{1.0|1.1}), closed mouth|(parted lips:{1.0|1.1}), smile},
+{(half-closed eyes:{1.0|1.1})|(tareme:{0.9|1.0})|soft eyes|(closed eyes:{0.85|0.95}), ^_^},
+{relaxed eyebrows|(raised inner eyebrows:{0.85|0.95})|straight eyebrows| },
+{(light blush:{0.85|0.95})|(blush:{0.8|0.9})| },|
+
+(serious:{0.9|1.0|1.1}),
+{(determined:{0.95|1.05})|stern, composed|resolute|(confident:{0.9|1.0})},
+{closed mouth|(frown:{0.85|0.95}), closed mouth|(dot mouth:{0.85|0.95})|slightly parted lips},
+{(narrowed eyes:{0.9|1.0})|(tsurime:{0.9|1.0})|steady gaze, focused|(half-closed eyes:{1.0|1.1})},
+{(furrowed brow:{0.8|0.9|1.0})|straight eyebrows|(v-shaped eyebrows:{0.7|0.8|0.9})|(raised eyebrow:{0.85|0.95})},
+{(shaded face:{0.7|0.8})|clean face| },|
+
+(sleepy:{0.95|1.05}),
+{drowsy|half-awake, dazed|(exhausted:{0.85|0.95})|languid, relaxed},
+{(parted lips:{1.0|1.1})|closed mouth, slack|(yawning:{0.8|0.9})|(open mouth:{0.8|0.9}), yawning},
+{(half-closed eyes:{1.05|1.15})|(=_=:{1.0})|(closed eyes:{0.85|0.95})|(squinting:{0.9|1.0})},
+{relaxed eyebrows|(raised inner eyebrows:{0.85|0.95})|straight eyebrows| },
+{(light blush:{0.85|0.95})|(tearing up:{0.75|0.85}), sleepy tears| },|
+
+(bored:{0.95|1.05}),
+{(unamused:{0.95|1.05})|(disappointed:{0.9|1.0})|indifferent|(sigh:{0.85|0.95})},
+{closed mouth|:t|(frown:{0.85|0.95})|(dot mouth:{0.85|0.95})},
+{(half-closed eyes:{1.05|1.15})|(jitome:{0.9|1.0})|(narrowed eyes:{0.9|1.0})|(=_=:{1.0})},
+{(raised eyebrow:{0.85|0.95})|straight eyebrows|(furrowed brow:{0.8|0.9})| },
+{(sweatdrop:{0.75|0.85})|(shaded face:{0.7|0.8})| },|
+
+(thinking:{0.95|1.05}),
+{(pensive:{0.95|1.05})|contemplative, quiet|(skeptical:{0.9|1.0})|distant, absorbed},
+{closed mouth|(parted lips:{1.0|1.1})|:/|pursed lips},
+{(narrowed eyes:{0.9|1.0})|(half-closed eyes:{1.0|1.1})|unfocused eyes|(closed eyes:{0.85|0.95})},
+{(furrowed brow:{0.8|0.9|1.0})|(raised eyebrow:{0.85|0.95})|(raised inner eyebrows:{0.85|0.95})|straight eyebrows},
+{(shaded face:{0.7|0.8})|(sweatdrop:{0.75|0.85})| },|
+
+(shy:{0.95|1.05}),
+{bashful, timid|(nervous:{0.9|1.0})|demure, reserved|(guilt:{0.85|0.95}), sheepish},
+{closed mouth, (light smile:{1.0|1.1})|(wavy mouth:{0.85|0.95})|(parted lips:{1.0|1.1})|:<},
+{(half-closed eyes:{1.0|1.1})|(closed eyes:{0.85|0.95})|averted eyes, downcast|(tareme:{0.9|1.0})},
+{(raised inner eyebrows:{0.9|1.0})|(furrowed brow:{0.8|0.9})|relaxed eyebrows| },
+{(blush:{0.8|0.9|1.0})|(light blush:{0.9|1.0})|(nose blush:{0.75|0.85})|(sweatdrop:{0.75|0.85})},|
+
+(sad:{0.9|1.0|1.1}),
+{melancholic, quiet|(lonely:{0.9|1.0})|(gloom \(expression\):{0.75|0.85})|(sad smile:{0.95|1.05})|(depressed:{0.85|0.95})},
+{(frown:{0.85|0.95})|(wavy mouth:{0.85|0.95})|closed mouth, downturned|:<},
+{(half-closed eyes:{1.0|1.1})|(tearing up:{0.8|0.9})|downcast eyes|(closed eyes:{0.85|0.95})},
+{(raised inner eyebrows:{0.95|1.05})|(furrowed brow:{0.8|0.9})|drooping eyebrows| },
+{(tears:{0.7|0.8|0.9})| }, {(shaded face:{0.7|0.8})|(color drain:{0.65|0.75})| },|
+
+(confident:{0.95|1.05}),
+{cool, composed|self-assured|(determined:{0.95|1.05})|poised, calm},
+{closed mouth, (light smile:{1.0|1.1})|(smirk:{0.85|0.95})|closed mouth|(smile:{0.9|1.0})},
+{(narrowed eyes:{0.9|1.0})|(tsurime:{0.9|1.0})|steady eyes|(half-closed eyes:{1.0|1.1})},
+{(raised eyebrow:{0.85|0.95})|straight eyebrows|(furrowed brow:{0.8|0.9})| },
+{clean face|(shaded face:{0.7|0.8})| },|
+
+(curious:{0.95|1.05}),
+{attentive, alert|(confused:{0.9|1.0})|inquisitive|(skeptical:{0.9|1.0})},
+{(parted lips:{1.0|1.1})|closed mouth|:o|(dot mouth:{0.85|0.95})},
+{open eyes, attentive|(wide-eyed:{0.8|0.9})|(o_o:{0.85|0.95})|(half-closed eyes:{1.0|1.1})},
+{(raised eyebrow:{0.9|1.0|1.1})|(raised eyebrows:{0.85|0.95})|(furrowed brow:{0.8|0.9})| },
+{(sweatdrop:{0.75|0.85})|(light blush:{0.85|0.95})| },|
+
+(laughing:{0.9|1.0|1.1}), (happy:{0.9|1.0}),
+{(grin:{0.9|1.0|1.1})|joyful laughter|(stifled laugh:{0.9|1.0})|beaming, bright},
+{:d|(open mouth:{0.8|0.9|1.0}), (smile:{0.9|1.0})|(grin:{0.9|1.0}), (teeth:{0.85|0.95})|(xd:{0.85})|(wide smile:{0.9|1.0})},
+{(closed eyes:{0.85|0.95}), (^_^:{0.9})|(>_<:{0.85|0.95})|(half-closed eyes:{1.0|1.1})|crinkled eyes, happy},
+{(raised eyebrows:{0.85|0.95})|relaxed eyebrows| },
+{(blush:{0.8|0.9|1.0})|(light blush:{0.9|1.0})|(sweatdrop:{0.75|0.85})| },|
+
+(angry:{0.9|1.0|1.1}),
+{(glaring:{0.85|0.95})|(annoyed:{0.9|1.0})|furious, enraged|(scowl:{0.9|1.0})|(frustrated:{0.9|1.0})},
+{(clenched teeth:{0.85|0.95})|(open mouth:{0.8|0.9|1.0}), shouting|(frown:{0.85|0.95})|>:\(|(grimace:{0.85|0.95})},
+{(narrowed eyes:{0.9|1.0})|(tsurime:{0.9|1.0})|(constricted pupils:{0.75|0.85})|(half-closed eyes:{1.0|1.1}), cold},
+{(v-shaped eyebrows:{0.75|0.85|0.95})|(furrowed brow:{0.85|0.95|1.05})|(raised eyebrow:{0.85|0.95})},
+{(anger vein:{0.65|0.75|0.85})|(shaded face:{0.7|0.8})|(nose blush:{0.75|0.85}), flushed anger| },|
+
+(surprised:{0.9|1.0|1.1}),
+{(shocked:{0.9|1.0})|startled|(horrified:{0.8|0.9})|taken aback},
+{:o|(open mouth:{0.8|0.9|1.0})|(parted lips:{1.0|1.1})|(gasp:{0.85|0.95})|(rectangular mouth:{0.75|0.85})},
+{(wide-eyed:{0.85|0.95|1.05})|(o_o:{0.85|0.95})|(0_0:{0.8|0.9})|(constricted pupils:{0.75|0.85})},
+{(raised eyebrows:{0.9|1.0|1.1})|(raised inner eyebrows:{0.9|1.0})|(furrowed brow:{0.8|0.9})},
+{(sweatdrop:{0.75|0.85})|(flying sweatdrops:{0.7|0.8})|(^^^:{0.65|0.75})|(blush:{0.8|0.9})| },|
+
+(crying:{0.85|0.95|1.05}),
+{(sobbing:{0.8|0.9})|(tearing up:{0.85|0.95})|(despair:{0.8|0.9})|(distress:{0.85|0.95})|crying quietly},
+{(wavy mouth:{0.85|0.95})|(open mouth:{0.8|0.9}), wailing|(frown:{0.85|0.95})|(clenched teeth:{0.85|0.95})|:<},
+{(crying with eyes open:{0.8|0.9})|(closed eyes:{0.85|0.95}), (t_t:{0.85})|(half-closed eyes:{1.0|1.1}), wet eyes|(tearing up:{0.85|0.95})},
+{(raised inner eyebrows:{0.95|1.05})|(furrowed brow:{0.85|0.95})|drooping eyebrows},
+{(tears:{0.7|0.8|0.9})|(streaming tears:{0.65|0.75})|(tears:{0.7|0.8}), (blush:{0.8|0.9})|(nose blush:{0.75|0.85})},|
+
+(embarrassed:{0.85|0.95|1.05}),
+{(flustered:{0.9|1.0})|(nervous:{0.9|1.0})|(shy:{0.95|1.05}), overwhelmed|panicked, self-conscious},
+{(wavy mouth:{0.85|0.95})|(open mouth:{0.8|0.9}), flustered|closed mouth, tight|:<|(clenched teeth:{0.85|0.95})},
+{(wide-eyed:{0.8|0.9})|(half-closed eyes:{1.0|1.1})|(closed eyes:{0.85|0.95})|(>_<:{0.85|0.95})},
+{(raised inner eyebrows:{0.9|1.0})|(furrowed brow:{0.85|0.95})|(v-shaped eyebrows:{0.75|0.85})},
+{(full-face blush:{0.7|0.8|0.9})|(blush:{0.85|0.95|1.05})|(nose blush:{0.75|0.85})|(blush stickers:{0.65|0.75})},
+{(flying sweatdrops:{0.7|0.8})|(sweatdrop:{0.75|0.85})|(steam:{0.7|0.8})| },|
+
+(smug:{0.85|0.95|1.05}),
+{(smirk:{0.9|1.0|1.1})|(doyagao:{0.85|0.95})|teasing, playful|(confident:{0.95|1.05}), superior|mischievous},
+{(smirk:{0.9|1.0|1.1})|(evil smile:{0.8|0.9})|>:\)|closed mouth, (light smile:{1.0|1.1})|(grin:{0.9|1.0}), one-sided},
+{(narrowed eyes:{0.9|1.0})|(half-closed eyes:{1.05|1.15})|(one eye closed:{0.85|0.95})|(tsurime:{0.9|1.0})|;\)},
+{(raised eyebrow:{0.9|1.0|1.1})|(v-shaped eyebrows:{0.75|0.85})|straight eyebrows},
+{(light blush:{0.85|0.95})|(shaded face:{0.7|0.8})| },|
+
+(seductive smile:{0.85|0.95|1.05}),
+{(naughty face:{0.75|0.85})|sultry, inviting|(aroused:{0.75|0.85})|(torogao:{0.7|0.8})|alluring, teasing},
+{(parted lips:{1.05|1.15})|(open mouth:{0.8|0.9}), soft|(licking lips:{0.8|0.9})|(tongue out:{0.8|0.9})|closed mouth, (smirk:{0.9|1.0})},
+{(bedroom eyes:{0.85|0.95})|(half-closed eyes:{1.05|1.15})|(narrowed eyes:{0.9|1.0})|(one eye closed:{0.85|0.95})|(heart-shaped pupils:{0.65|0.75})},
+{(raised eyebrow:{0.85|0.95})|relaxed eyebrows|straight eyebrows| },
+{(blush:{0.85|0.95|1.05})|(nose blush:{0.75|0.85})|(heavy breathing:{0.75|0.85})|(saliva:{0.7|0.8})| },|
+
+(scared:{0.85|0.95|1.05}),
+{(horrified:{0.8|0.9})|(panicking:{0.85|0.95})|(worried:{0.9|1.0})|(traumatized:{0.7|0.8})|terrified},
+{(open mouth:{0.8|0.9|1.0}), (screaming:{0.8|0.9})|(clenched teeth:{0.85|0.95})|(wavy mouth:{0.85|0.95})|(grimace:{0.85|0.95})|d:},
+{(wide-eyed:{0.85|0.95|1.05})|(constricted pupils:{0.75|0.85|0.95})|(empty eyes:{0.75|0.85})|(o_o:{0.85|0.95})},
+{(raised inner eyebrows:{0.95|1.05})|(furrowed brow:{0.85|0.95})|(v-shaped eyebrows:{0.75|0.85})},
+{(sweat:{0.8|0.9})|(flying sweatdrops:{0.7|0.8})|(turn pale:{0.65|0.75})|(color drain:{0.65|0.75})|(shaded face:{0.7|0.8})},|
+
+(excited:{0.9|1.0|1.1}), (happy:{0.9|1.0}),
+{elated, thrilled|(ecstasy:{0.7|0.8}), joyful|eager, energetic|delighted},
+{:d|(open mouth:{0.8|0.9|1.0}), (smile:{0.9|1.0})|(grin:{0.9|1.0|1.1})|(wide smile:{0.9|1.0})|:3},
+{(sparkling eyes:{0.75|0.85})|(+_+:{0.75|0.85})|(wide-eyed:{0.85|0.95})|(closed eyes:{0.85|0.95}), (^_^:{0.9})|(heart-shaped pupils:{0.65|0.75})},
+{(raised eyebrows:{0.9|1.0})|relaxed eyebrows| },
+{(blush:{0.85|0.95|1.05})|(light blush:{0.9|1.0})|(blush stickers:{0.65|0.75})| },|
+
+(pout:{0.9|1.0|1.1}),
+{(sulking:{0.9|1.0})|(annoyed:{0.9|1.0}), petulant|(unamused:{0.95|1.05})|(frustrated:{0.9|1.0}), childish},
+{(pout:{0.95|1.05|1.15})|:t|3:|(puffy cheeks:{0.8|0.9})|(frown:{0.85|0.95})},
+{(half-closed eyes:{1.05|1.15})|(narrowed eyes:{0.9|1.0})|(jitome:{0.9|1.0})|(closed eyes:{0.85|0.95}), turned away},
+{(furrowed brow:{0.85|0.95})|(v-shaped eyebrows:{0.75|0.85})|(raised inner eyebrows:{0.9|1.0})},
+{(light blush:{0.9|1.0})|(blush:{0.8|0.9})|(anger vein:{0.65|0.75})|(sweatdrop:{0.75|0.85})| }}
