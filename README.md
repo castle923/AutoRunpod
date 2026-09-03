@@ -59,17 +59,20 @@ API 키는 항상 환경변수(`RUNPOD_API_KEY`)나 `--api-key` 플래그로 전
 
 ### 빠른 방법: `bootstrap_pod.sh` 한 방에 실행
 
-포드 생성 + rclone 인증(수동, 1회)만 마쳤다면, 아래 한 줄로 2~6단계(설정/스크립트 배치,
-crontab 등록, LoRA/체크포인트 복원 시작)를 자동으로 진행할 수 있다:
+포드 생성 후 아래 한 줄이면 rclone 인증(gdrive)까지 포함해 전체 재구축이 자동으로 끝난다:
 
 ```bash
-export GITHUB_TOKEN="ghp_xxx"   # AutoRunpod가 비공개 저장소인 경우에만 필요
+export GITHUB_TOKEN="ghp_xxx"   # 필수 — castle923/Runpod-Backup(비공개)에서 rclone 비밀정보를
+                                  # 가져오려면 repo 읽기 권한이 있는 토큰이 필요함
 curl -sL https://raw.githubusercontent.com/castle923/AutoRunpod/main/scripts/bootstrap_pod.sh | bash
 ```
 
-단, rclone gdrive 인증은 이 스크립트가 대신해주지 않으므로(보안상 자격증명을 저장소에 둘 수
-없음) 먼저 `rclone config`로 수동 인증해야 한다. 아래는 이 스크립트가 내부적으로 수행하는
-단계를 하나씩 풀어쓴 것 — 문제가 생겼을 때 어느 단계인지 파악하는 용도로 참고.
+rclone gdrive 인증 정보(실제 OAuth client_id/secret/refresh_token)는 **`castle923/Runpod-Backup`
+(비공개 저장소)의 `secrets/rclone.conf`**에만 저장되어 있다. **AutoRunpod는 공개 저장소이므로
+이 파일이나 그 내용을 절대 여기에 커밋하지 않는다** — bootstrap_pod.sh가 실행 시점에 비공개
+저장소에서 별도로 가져와 배치할 뿐, 저장소 자체에는 포함되지 않는다.
+아래는 이 스크립트가 내부적으로 수행하는 단계를 하나씩 풀어쓴 것 — 문제가 생겼을 때 어느
+단계인지 파악하는 용도로 참고.
 
 ### 수동 단계별 순서
 

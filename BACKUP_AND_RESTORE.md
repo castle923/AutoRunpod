@@ -1,10 +1,12 @@
 # 백업/복원 구조와 rclone 작동 원리
 
-**주의**: 이 문서에는 실제 계정 자격증명(OAuth 토큰, refresh token 등)이 없습니다.
-그런 값들은 절대 GitHub에 커밋하지 않으며, 필요할 때마다 별도로(gdrive 비공개 백업 또는
-직접 재인증) 가져와야 합니다. 이 문서는 **구조와 절차**만 설명합니다.
+**주의**: 이 문서 자체에는 실제 계정 자격증명(OAuth 토큰, refresh token 등)이 없습니다.
+실제 값은 **`castle923/Runpod-Backup`(비공개 저장소)의 `secrets/rclone.conf`에만** 저장되어
+있으며, `bootstrap_pod.sh`가 새 포드 부팅 시 자동으로 가져다 씁니다.
+**`castle923/AutoRunpod`는 공개 저장소이므로 이 문서를 포함해 그 어떤 파일에도 실제 값을
+커밋하지 않습니다** — 이 문서는 어느 저장소에 복사되어 있든 **구조와 절차**만 설명합니다.
 
-작성 시각(KST): 2026-09-03 11:15
+작성 시각(KST): 2026-09-03 11:15 / 갱신: 2026-09-03 (rclone 자동 배치 방식 반영)
 
 ## 전체 구조 요약
 
@@ -62,16 +64,17 @@ token = {"access_token": "...", "token_type": "Bearer", "refresh_token": "...", 
 
 - `access_token`은 보통 1시간 정도면 만료되지만, `refresh_token`이 있으면 rclone이 자동으로
   갱신하므로 access_token 자체는 만료돼도 상관없다.
-- **이 실제 값들은 GitHub에 올리지 않는다.** 대신:
-  1. 구글드라이브 자체에 `런포드 백업/rclone_backup_config/rclone.conf`(또는 유사 경로)로
-     별도 백업해두는 방법이 있지만, 이 역시 "포드가 완전히 죽었을 때"는 접근할 방법이 없다는
-     동일한 딜레마가 있다.
-  2. 가장 안전한 방법은 **매번 새 포드에서 `rclone config`로 구글 계정을 다시 OAuth 인증**하는 것.
-     이러면 브라우저로 구글 로그인 화면이 뜨고, 권한을 승인하면 새 토큰이 발급된다.
-  3. 또는 사용자가 미리 안전한 곳(비밀번호 관리자 등)에 client_id/secret/refresh_token을
-     따로 보관해뒀다가, 새 포드에 수동으로 붙여넣는 방법도 가능하다.
+- **공개 저장소(AutoRunpod)에는 이 실제 값들을 절대 올리지 않는다.** 대신 두 가지 경로가 있다:
+  1. **(현재 방식, 자동)** 실제 값을 `castle923/Runpod-Backup`(비공개 저장소)의
+     `secrets/rclone.conf`에 저장해두고, `bootstrap_pod.sh`가 새 포드 부팅 시 `GITHUB_TOKEN`으로
+     그 저장소를 클론해서 자동으로 `~/.config/rclone/rclone.conf`에 배치한다. 사람이 매번 OAuth
+     인증을 반복할 필요가 없어짐. 단, `GITHUB_TOKEN`이 새면 Runpod-Backup에 접근 가능한 사람이
+     구글 드라이브 전체에 접근할 수 있게 되므로 토큰 관리에 주의.
+  2. **(수동, 예비)** `GITHUB_TOKEN`이 없거나 Runpod-Backup 접근이 안 될 때는, 매번 새 포드에서
+     `rclone config`로 구글 계정을 다시 OAuth 인증한다 (브라우저 로그인 화면 → 승인 → 새 토큰
+     발급).
 
-### 새 포드에서 rclone 처음부터 설정하는 절차
+### 새 포드에서 rclone 수동으로 설정하는 절차 (자동 배치가 안 될 때만)
 
 ```bash
 # 1. rclone 설치 확인
@@ -92,6 +95,9 @@ rclone lsd gdrive:
 # 4. 설정 파일을 포드 재부팅에도 살아남도록 백업 (watchdog.sh가 자동으로 이 경로에서 복구함)
 mkdir -p /workspace/rclone_backup_config
 cp ~/.config/rclone/rclone.conf /workspace/rclone_backup_config/rclone.conf
+
+# 5. (선택) 이 토큰을 Runpod-Backup의 secrets/rclone.conf에도 반영해두면 다음 포드부터는
+#    bootstrap_pod.sh가 자동으로 가져다 씀 — GitHub 웹 UI에서 파일을 열어 덮어쓰기만 하면 됨.
 ```
 
 ## 백업할 때(현재 포드 → 새로운 백업) 정보를 가져오는 방법
