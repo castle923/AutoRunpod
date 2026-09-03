@@ -21,6 +21,13 @@ Forge) 설정/자동화 스크립트 백업을 함께 관리합니다.
 - `scripts/finish_project.py` — 프로젝트 완료 표준 처리(zip → gdrive 업로드 → 백업 미러링 → 검증)
 - `scripts/hfdown.sh` — 체크포인트/LoRA 원본을 Hugging Face(`Agnus6728/wai`)에서 받는 스크립트
   (토큰은 마스킹되어 있음, 실제 토큰은 gdrive `런포드 자동화/hfdown.sh` 비공개본 참고)
+- `scripts/auto_restore_on_boot.sh` — 포드 부팅 시 자동 실행(crontab `@reboot`). LoRA/체크포인트/
+  dynamic_prompts가 비어있거나 gdrive와 개수가 다르면 자동으로 복원하고 무결성 검증까지 수행함.
+  이미 완전하면 즉시 종료(idempotent) — 매 부팅마다 실행해도 안전.
+- `scripts/auto_backup_workspace.sh` — `/workspace`에 새로 생긴 잡다한 파일(느슨한 스크립트/노트북),
+  scripts/config/dynamic_prompts 최신본, 최근 로그(24시간)를 30분마다 gdrive
+  `런포드 백업/workspace_snapshot/`에 스냅샷 백업(crontab `*/30 * * * *`). 그래픽카드 셧다운 등으로
+  포드가 갑자기 사라져도 GitHub/gdrive에 아직 반영 안 된 최신 작업 파일 손실을 최소화하기 위함.
 - `dynamic_prompts/` — submit_job.py가 참조하는 프롬프트 조합 텍스트
 - `SETUP_HISTORY.md` — 최초 구축(2026-08-27) 당시 작업 내역, 겪은 문제/해결, ComfyUI 설정 방법 등
 - `MONITORING_ROUTINES.md` — 시간별 정밀검사/잔여시간 경고 Routine의 내용 정리 (참고용, 실행 코드 아님)
@@ -61,12 +68,20 @@ API 키는 항상 환경변수(`RUNPOD_API_KEY`)나 `--api-key` 플래그로 전
    - `scripts/watchdog.sh`, `auto_clean_kernels.py`, `preventive_restart.py`, `submit_job.py`,
      `finish_project.py`, `hfdown.sh` → `/workspace/scripts/` (submit_job.py의 포드 URL은 새 포드 주소로 수정 필요)
    - `dynamic_prompts/*` → `/workspace/dynamic_prompts/`
-4. watchdog.sh 백그라운드 실행 + crontab 3종 등록:
+4. watchdog.sh 백그라운드 실행 + crontab 5종 등록:
    ```
    */5 * * * * /usr/bin/python3 /workspace/scripts/auto_clean_kernels.py >> /workspace/logs/auto_clean_kernels.log 2>&1
    */10 * * * * /usr/bin/python3 /workspace/scripts/preventive_restart.py >> /workspace/logs/preventive_restart_cron.log 2>&1
    @reboot /workspace/scripts/watchdog.sh >> /workspace/logs/watchdog_stdout.log 2>&1
+   @reboot /workspace/scripts/auto_restore_on_boot.sh >> /workspace/logs/auto_restore.log 2>&1
+   */30 * * * * /workspace/scripts/auto_backup_workspace.sh >> /workspace/logs/auto_backup.log 2>&1
    ```
+   - `auto_restore_on_boot.sh`가 있으면 2번 단계(LoRA/체크포인트/dynamic_prompts 복원)를 사람이
+     직접 하지 않아도 포드 재부팅 시 자동으로 진행되므로, 이 스크립트를 먼저 배포해두면 이후
+     재구축 시간이 크게 단축됨.
+   - `auto_backup_workspace.sh`는 워크스페이스에 새로 생긴(아직 백업 안 된) 파일들을 주기적으로
+     gdrive `런포드 백업/workspace_snapshot/`에 저장해, 포드가 갑자기 사라져도 최신 작업 손실을
+     최소화함.
 5. Forge 재시작 후 `config.json`의 `disable_all_extensions` 값이 `"none"`인지 확인
    (이 값이 `"all"`이면 확장이 전혀 로드되지 않음 — 과거 실제로 발생했던 문제)
 
