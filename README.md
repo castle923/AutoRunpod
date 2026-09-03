@@ -28,6 +28,10 @@ Forge) 설정/자동화 스크립트 백업을 함께 관리합니다.
   scripts/config/dynamic_prompts 최신본, 최근 로그(24시간)를 30분마다 gdrive
   `런포드 백업/workspace_snapshot/`에 스냅샷 백업(crontab `*/30 * * * *`). 그래픽카드 셧다운 등으로
   포드가 갑자기 사라져도 GitHub/gdrive에 아직 반영 안 된 최신 작업 파일 손실을 최소화하기 위함.
+- `scripts/bootstrap_pod.sh` — **새 포드에서 딱 한 번 실행하는 통합 부트스트랩 스크립트.**
+  이 저장소를 클론 → config.json/scripts/dynamic_prompts 배치 → submit_job.py 포드 URL 자동
+  치환 → crontab 5종 등록 → auto_restore_on_boot.sh 즉시 1회 실행까지 전부 자동으로 처리함.
+  자세한 설명은 아래 "새 포드 구축 시 복원 순서" 참고.
 - `dynamic_prompts/` — submit_job.py가 참조하는 프롬프트 조합 텍스트
 - `SETUP_HISTORY.md` — 최초 구축(2026-08-27) 당시 작업 내역, 겪은 문제/해결, ComfyUI 설정 방법 등
 - `MONITORING_ROUTINES.md` — 시간별 정밀검사/잔여시간 경고 Routine의 내용 정리 (참고용, 실행 코드 아님)
@@ -52,6 +56,22 @@ python3 scripts/runpod_create_pod.py \
 API 키는 항상 환경변수(`RUNPOD_API_KEY`)나 `--api-key` 플래그로 전달하며, 소스에 하드코딩하지 않습니다.
 
 ## 새 포드 구축 시 복원 순서
+
+### 빠른 방법: `bootstrap_pod.sh` 한 방에 실행
+
+포드 생성 + rclone 인증(수동, 1회)만 마쳤다면, 아래 한 줄로 2~6단계(설정/스크립트 배치,
+crontab 등록, LoRA/체크포인트 복원 시작)를 자동으로 진행할 수 있다:
+
+```bash
+export GITHUB_TOKEN="ghp_xxx"   # AutoRunpod가 비공개 저장소인 경우에만 필요
+curl -sL https://raw.githubusercontent.com/castle923/AutoRunpod/main/scripts/bootstrap_pod.sh | bash
+```
+
+단, rclone gdrive 인증은 이 스크립트가 대신해주지 않으므로(보안상 자격증명을 저장소에 둘 수
+없음) 먼저 `rclone config`로 수동 인증해야 한다. 아래는 이 스크립트가 내부적으로 수행하는
+단계를 하나씩 풀어쓴 것 — 문제가 생겼을 때 어느 단계인지 파악하는 용도로 참고.
+
+### 수동 단계별 순서
 
 1. RunPod 포드 생성 (이미지: `runpod/forge:3.3.0`, 볼륨 300GB 이상)
    - **반드시 `cloudType: COMMUNITY`(커뮤니티 클라우드)로 생성할 것.** `ALL`이나 기본값으로 생성하면
