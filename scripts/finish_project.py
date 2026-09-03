@@ -13,11 +13,22 @@ baseline 이후 생성된 이미지를 zip으로 압축하고, gdrive:<project>/
     python3 finish_project.py 후야_r_18 2026-09-03 0
 """
 import argparse
+import json
 import re
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
+
+
+def remote_size(remote_path):
+    r = subprocess.run(["rclone", "size", "--json", remote_path], capture_output=True, text=True)
+    if r.returncode != 0:
+        return None, r.stdout + r.stderr
+    try:
+        return json.loads(r.stdout)["bytes"], r.stdout + r.stderr
+    except (json.JSONDecodeError, KeyError):
+        return None, r.stdout + r.stderr
 
 
 def main():
@@ -79,19 +90,23 @@ def main():
         print("mirror to 런포드 백업/압축파일/ failed", file=sys.stderr)
         sys.exit(1)
 
-    # verify: file count and size at both destinations
-    r3 = subprocess.run(
-        ["rclone", "size", f"{dest_project}{zip_path.name}"],
-        capture_output=True, text=True,
-    )
-    print("project folder check:", r3.stdout, r3.stderr)
+    # verify: local zip size must match both remote copies exactly
+    local_size = zip_path.stat().st_size
 
-    r4 = subprocess.run(
-        ["rclone", "size", f"gdrive:런포드 백업/압축파일/{zip_path.name}"],
-        capture_output=True, text=True,
-    )
-    print("backup mirror check:", r4.stdout, r4.stderr)
+    project_size, project_raw = remote_size(f"{dest_project}{zip_path.name}")
+    print("project folder check:", project_raw)
 
+    mirror_size, mirror_raw = remote_size(f"gdrive:런포드 백업/압축파일/{zip_path.name}")
+    print("backup mirror check:", mirror_raw)
+
+    if project_size != local_size:
+        print(f"VERIFY FAILED: project folder size {project_size} != local zip size {local_size}", file=sys.stderr)
+        sys.exit(1)
+    if mirror_size != local_size:
+        print(f"VERIFY FAILED: backup mirror size {mirror_size} != local zip size {local_size}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"verified: local {local_size} bytes == project folder == backup mirror")
     print(f"done: {args.project_name} ({len(selected)} images)")
 
 
