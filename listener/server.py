@@ -35,6 +35,8 @@ DEFAULT_STATE = {
     "batch_job": "",
     "batch_progress": 0.0,
     "last_job_nonempty": False,
+    "batch_start_idx": None,
+    "batch_job_timestamp": None,
 }
 
 
@@ -150,6 +152,25 @@ def monitor_forge_process():
         time.sleep(2)
 
 
+def _current_max_idx():
+    """Return the highest image index in today's output folder, or -1."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    outdir = os.path.join(OUTPUTS_ROOT, today)
+    if not os.path.isdir(outdir):
+        return -1
+    max_idx = -1
+    for name in os.listdir(outdir):
+        m = name.split("-", 1)
+        if len(m) >= 1:
+            try:
+                idx = int(m[0])
+                if idx > max_idx:
+                    max_idx = idx
+            except ValueError:
+                pass
+    return max_idx
+
+
 def monitor_batch_progress():
     while True:
         try:
@@ -157,6 +178,7 @@ def monitor_batch_progress():
             if r.status_code == 200 and '"progress"' in r.text:
                 data = r.json()
                 job = data.get("state", {}).get("job", "") or ""
+                job_ts = data.get("state", {}).get("job_timestamp", "") or ""
                 progress = data.get("progress", 0.0) or 0.0
                 state = load_state()
                 was_nonempty = state.get("last_job_nonempty", False)
@@ -167,7 +189,13 @@ def monitor_batch_progress():
                     "batch_progress": progress,
                     "last_job_nonempty": job_nonempty,
                 }
-                if job_nonempty:
+
+                if job_nonempty and not was_nonempty:
+                    start_idx = _current_max_idx() + 1
+                    updates["batch_completed"] = False
+                    updates["batch_start_idx"] = start_idx
+                    updates["batch_job_timestamp"] = job_ts
+                elif job_nonempty:
                     updates["batch_completed"] = False
                 elif was_nonempty and not job_nonempty:
                     updates["batch_completed"] = True
@@ -260,6 +288,8 @@ def status():
         "batch_progress": state.get("batch_progress"),
         "batch_job": state.get("batch_job"),
         "batch_completed": state.get("batch_completed"),
+        "batch_start_idx": state.get("batch_start_idx"),
+        "batch_job_timestamp": state.get("batch_job_timestamp"),
         "last_crash_time": state.get("last_crash_time"),
         "restart_count": state.get("restart_count"),
         "restart_storm_stopped": state.get("restart_storm_stopped"),
