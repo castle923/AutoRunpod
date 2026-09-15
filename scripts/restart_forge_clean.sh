@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Kill any existing Forge process first to avoid port conflicts
+pkill -9 -f "launch.py" 2>/dev/null
+sleep 2
+
 cd /workspace/stable-diffusion-webui-forge
 VENV_PATH=$(cat /workspace/stable-diffusion-webui-forge/venv_path)
 exec env -i \

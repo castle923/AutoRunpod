@@ -30,6 +30,7 @@ DEFAULT_STATE = {
     "restart_times": [],
     "last_crash_time": None,
     "last_restart_ok": None,
+    "last_restart_reason": None,
     "restart_storm_stopped": False,
     "batch_completed": False,
     "batch_job": "",
@@ -91,6 +92,22 @@ def forge_responsive(timeout=5):
         return False
 
 
+def forge_stuck(timeout=5):
+    """Check if Forge is in a stuck/interrupted state that needs restart."""
+    try:
+        r = requests.get(FORGE_API, timeout=timeout)
+        if r.status_code != 200:
+            return False, "not_responding"
+        data = r.json()
+        interrupted = data.get("state", {}).get("interrupted", False)
+        job = data.get("state", {}).get("job", "") or ""
+        if interrupted and not job:
+            return True, "interrupted_idle"
+        return False, "ok"
+    except Exception:
+        return False, "error"
+
+
 def do_restart(reason="auto"):
     """Runs the restart sequence. Returns (ok: bool, message: str)."""
     state = load_state()
@@ -139,17 +156,56 @@ def do_restart(reason="auto"):
         restart_count=state.get("restart_count", 0) + 1,
         last_crash_time=now_iso(),
         last_restart_ok=ok,
+        last_restart_reason=reason,
         restart_storm_stopped=False,
     )
     return ok, "recovered" if ok else "restart script ran but Forge did not become responsive within 120s"
 
 
 def monitor_forge_process():
+    startup_grace = time.time() + 120
+    consecutive_unresponsive = 0
+    consecutive_stuck = 0
+    UNRESPONSIVE_THRESHOLD = 6
+    STUCK_THRESHOLD = 3
+
     while True:
+        if time.time() < startup_grace:
+            time.sleep(5)
+            continue
+
         pid = find_launch_pid()
+
         if pid is None:
+            consecutive_unresponsive = 0
+            consecutive_stuck = 0
             do_restart(reason="process missing")
-        time.sleep(2)
+            startup_grace = time.time() + 120
+            time.sleep(5)
+            continue
+
+        if not forge_responsive(timeout=5):
+            consecutive_unresponsive += 1
+            if consecutive_unresponsive >= UNRESPONSIVE_THRESHOLD:
+                do_restart(reason=f"API unresponsive for {consecutive_unresponsive * 5}s")
+                consecutive_unresponsive = 0
+                consecutive_stuck = 0
+                startup_grace = time.time() + 120
+        else:
+            consecutive_unresponsive = 0
+
+        stuck, stuck_reason = forge_stuck(timeout=5)
+        if stuck:
+            consecutive_stuck += 1
+            if consecutive_stuck >= STUCK_THRESHOLD:
+                do_restart(reason=f"stuck state: {stuck_reason} for {consecutive_stuck * 5}s")
+                consecutive_stuck = 0
+                consecutive_unresponsive = 0
+                startup_grace = time.time() + 120
+        else:
+            consecutive_stuck = 0
+
+        time.sleep(5)
 
 
 def _current_max_idx():
@@ -292,6 +348,7 @@ def status():
         "batch_job_timestamp": state.get("batch_job_timestamp"),
         "last_crash_time": state.get("last_crash_time"),
         "restart_count": state.get("restart_count"),
+        "last_restart_reason": state.get("last_restart_reason"),
         "restart_storm_stopped": state.get("restart_storm_stopped"),
         "uptime_seconds": round(time.time() - START_TIME, 1),
     })
