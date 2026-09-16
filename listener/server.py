@@ -18,6 +18,23 @@ FORGE_API = "http://localhost:3001/sdapi/v1/progress?skip_current_image=true"
 RESTART_SCRIPT = "/workspace/restart_forge_clean.sh"
 FORGE_LOG = "/workspace/logs/forge_new.log"
 OUTPUTS_ROOT = "/workspace/stable-diffusion-webui-forge/output/txt2img-images"
+EVENT_LOG = os.path.join(LISTENER_DIR, "listener_events.log")
+
+# 컨테이너 메모리 상한 감시.
+# 이 포드는 cgroup으로 약 62GB 상한이 걸려 있는데, free(1)은 호스트 전체(251GB)를
+# 보여주기 때문에 여유가 있는 것처럼 착각하게 된다. 상한에 닿으면 커널이 Forge를
+# SIGKILL로 죽이고, 파이썬 예외가 없어서 로그에는 진행률이 뚝 끊긴 흔적만 남는다.
+CGROUP_V1_USAGE = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
+CGROUP_V1_LIMIT = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+CGROUP_V1_STAT = "/sys/fs/cgroup/memory/memory.stat"
+CGROUP_V2_CURRENT = "/sys/fs/cgroup/memory.current"
+CGROUP_V2_MAX = "/sys/fs/cgroup/memory.max"
+CGROUP_V2_STAT = "/sys/fs/cgroup/memory.stat"
+
+MEM_WARN_PCT = 80.0
+MEM_HIGH_PCT = 90.0
+MEM_RESTART_COOLDOWN = 900  # 메모리 사유 재시작 후 최소 대기(초)
+NO_LIMIT = 1 << 60
 RCLONE_CONFIG = "/workspace/rclone.conf"
 RCLONE_REMOTE = "gdrive:"
 
@@ -38,6 +55,12 @@ DEFAULT_STATE = {
     "last_job_nonempty": False,
     "batch_start_idx": None,
     "batch_job_timestamp": None,
+    "batch_aborted": False,
+    "batch_start_restart_count": 0,
+    "mem_usage_gb": None,
+    "mem_limit_gb": None,
+    "mem_pct": None,
+    "mem_peak_pct": 0.0,
 }
 
 
@@ -108,6 +131,96 @@ def forge_stuck(timeout=5):
         return False, "error"
 
 
+def log_event(msg):
+    try:
+        with open(EVENT_LOG, "a") as f:
+            f.write("%s %s\n" % (now_iso(), msg))
+    except Exception:
+        pass
+
+
+def _read_int(path):
+    try:
+        raw = open(path).read().strip()
+        return None if raw == "max" else int(raw)
+    except Exception:
+        return None
+
+
+def _inactive_file(stat_path, key):
+    """페이지 캐시 중 회수 가능한 몫. 이걸 빼야 실제 사용량이 나온다."""
+    try:
+        for line in open(stat_path):
+            parts = line.split()
+            if len(parts) == 2 and parts[0] == key:
+                return int(parts[1])
+    except Exception:
+        pass
+    return 0
+
+
+def container_memory():
+    """(실사용 바이트, 상한 바이트). 알 수 없으면 (None, None).
+
+    usage_in_bytes에는 회수 가능한 페이지 캐시가 포함돼 있어서 그대로 쓰면
+    rclone 업로드나 zip 생성 직후 90%를 넘긴 것처럼 보인다. 그래서 inactive_file을
+    빼고 working set 기준으로 판단한다.
+    """
+    if os.path.exists(CGROUP_V1_USAGE):
+        usage = _read_int(CGROUP_V1_USAGE)
+        limit = _read_int(CGROUP_V1_LIMIT)
+        cache = _inactive_file(CGROUP_V1_STAT, "total_inactive_file")
+    elif os.path.exists(CGROUP_V2_CURRENT):
+        usage = _read_int(CGROUP_V2_CURRENT)
+        limit = _read_int(CGROUP_V2_MAX)
+        cache = _inactive_file(CGROUP_V2_STAT, "inactive_file")
+    else:
+        return None, None
+
+    if usage is None or limit is None or limit >= NO_LIMIT:
+        return None, None
+    return max(usage - cache, 0), limit
+
+
+def monitor_memory():
+    """상한 대비 사용률을 감시한다.
+
+    작업 도중에는 절대 재시작하지 않는다 — 진행 중인 배치를 죽이면 대기열이
+    통째로 날아가서, 막으려던 손실을 그대로 일으키게 된다. 대신 경고만 남기고,
+    작업이 비어 있는 순간에만 재시작해서 메모리를 회수한다.
+    """
+    last_mem_restart = 0.0
+    warned = False
+    while True:
+        usage, limit = container_memory()
+        if usage is not None:
+            pct = usage / limit * 100.0
+            state = load_state()
+            peak = max(state.get("mem_peak_pct") or 0.0, pct)
+            update_state(
+                mem_usage_gb=round(usage / 1e9, 2),
+                mem_limit_gb=round(limit / 1e9, 2),
+                mem_pct=round(pct, 1),
+                mem_peak_pct=round(peak, 1),
+            )
+
+            if pct >= MEM_WARN_PCT:
+                if not warned:
+                    log_event("WARN memory %.1f%% (%.1f/%.1f GB) job=%r"
+                              % (pct, usage / 1e9, limit / 1e9, state.get("batch_job")))
+                    warned = True
+            else:
+                warned = False
+
+            job = state.get("batch_job") or ""
+            if (pct >= MEM_HIGH_PCT and not job
+                    and time.time() - last_mem_restart > MEM_RESTART_COOLDOWN):
+                log_event("memory %.1f%% and idle — restarting Forge to reclaim" % pct)
+                do_restart(reason="memory %.1f%% of container limit while idle" % pct)
+                last_mem_restart = time.time()
+        time.sleep(30)
+
+
 def do_restart(reason="auto"):
     """Runs the restart sequence. Returns (ok: bool, message: str)."""
     state = load_state()
@@ -166,8 +279,10 @@ def monitor_forge_process():
     startup_grace = time.time() + 120
     consecutive_unresponsive = 0
     consecutive_stuck = 0
+    consecutive_missing = 0
     UNRESPONSIVE_THRESHOLD = 6
     STUCK_THRESHOLD = 3
+    MISSING_THRESHOLD = 2
 
     while True:
         if time.time() < startup_grace:
@@ -177,12 +292,24 @@ def monitor_forge_process():
         pid = find_launch_pid()
 
         if pid is None:
-            consecutive_unresponsive = 0
-            consecutive_stuck = 0
-            do_restart(reason="process missing")
-            startup_grace = time.time() + 120
+            # psutil.process_iter는 부하가 걸린 순간 대상 프로세스를 놓치거나
+            # AccessDenied로 건너뛸 수 있다. 여기서 바로 재시작하면 멀쩡히 배치를
+            # 돌리던 Forge를 죽이게 되므로, API 응답으로 한 번 더 확인한다.
+            if forge_responsive(timeout=5):
+                log_event("PID를 찾지 못했지만 API가 응답함 — 재시작 보류(오탐)")
+                consecutive_missing = 0
+                time.sleep(5)
+                continue
+            consecutive_missing += 1
+            if consecutive_missing >= MISSING_THRESHOLD:
+                consecutive_unresponsive = 0
+                consecutive_stuck = 0
+                consecutive_missing = 0
+                do_restart(reason="process missing")
+                startup_grace = time.time() + 120
             time.sleep(5)
             continue
+        consecutive_missing = 0
 
         if not forge_responsive(timeout=5):
             consecutive_unresponsive += 1
@@ -249,12 +376,22 @@ def monitor_batch_progress():
                 if job_nonempty and not was_nonempty:
                     start_idx = _current_max_idx() + 1
                     updates["batch_completed"] = False
+                    updates["batch_aborted"] = False
                     updates["batch_start_idx"] = start_idx
                     updates["batch_job_timestamp"] = job_ts
+                    updates["batch_start_restart_count"] = state.get("restart_count", 0)
                 elif job_nonempty:
                     updates["batch_completed"] = False
                 elif was_nonempty and not job_nonempty:
+                    # 작업이 비었다고 해서 다 끝난 게 아니다. Forge가 재시작되면
+                    # 대기열이 통째로 사라지면서 똑같이 "유휴"로 보인다. 배치가 도는
+                    # 동안 재시작이 있었는지로 둘을 구분한다 — 이걸 구분하지 못해
+                    # 리코 배치가 83/100에서 끊긴 걸 완료로 오판한 적이 있다.
+                    aborted = state.get("restart_count", 0) > state.get("batch_start_restart_count", 0)
                     updates["batch_completed"] = True
+                    updates["batch_aborted"] = aborted
+                    log_event("배치 종료 — %s (job=%r)"
+                              % ("재시작으로 중단됨" if aborted else "정상 완료", job_ts))
 
                 update_state(**updates)
         except Exception:
@@ -344,12 +481,17 @@ def status():
         "batch_progress": state.get("batch_progress"),
         "batch_job": state.get("batch_job"),
         "batch_completed": state.get("batch_completed"),
+        "batch_aborted": state.get("batch_aborted"),
         "batch_start_idx": state.get("batch_start_idx"),
         "batch_job_timestamp": state.get("batch_job_timestamp"),
         "last_crash_time": state.get("last_crash_time"),
         "restart_count": state.get("restart_count"),
         "last_restart_reason": state.get("last_restart_reason"),
         "restart_storm_stopped": state.get("restart_storm_stopped"),
+        "mem_usage_gb": state.get("mem_usage_gb"),
+        "mem_limit_gb": state.get("mem_limit_gb"),
+        "mem_pct": state.get("mem_pct"),
+        "mem_peak_pct": state.get("mem_peak_pct"),
         "uptime_seconds": round(time.time() - START_TIME, 1),
     })
 
@@ -399,6 +541,7 @@ def main():
 
     threading.Thread(target=monitor_forge_process, daemon=True).start()
     threading.Thread(target=monitor_batch_progress, daemon=True).start()
+    threading.Thread(target=monitor_memory, daemon=True).start()
 
     app.run(host="0.0.0.0", port=5000, threaded=True)
 
