@@ -221,6 +221,21 @@ def monitor_memory():
         time.sleep(30)
 
 
+def forge_log_active(window=180):
+    """Forge 로그가 최근에 쓰였으면 살아서 무언가 하고 있다는 뜻.
+
+    interrupted=True는 고장 신호가 아니다. 설정에서 'Reload UI'를 누르거나
+    사용자가 생성을 수동 중단해도 그대로 남고, 다음 작업이 시작될 때까지
+    해제되지 않는다. 실제로 UI 재시작 직후 16초 만에 멀쩡한 Forge를 죽인 적이
+    있다. 반면 진짜로 고착된 Forge는 아무것도 기록하지 못하므로, 로그 활동
+    유무가 둘을 가르는 신호가 된다.
+    """
+    try:
+        return time.time() - os.path.getmtime(FORGE_LOG) < window
+    except Exception:
+        return False
+
+
 def do_restart(reason="auto"):
     """Runs the restart sequence. Returns (ok: bool, message: str)."""
     state = load_state()
@@ -281,7 +296,7 @@ def monitor_forge_process():
     consecutive_stuck = 0
     consecutive_missing = 0
     UNRESPONSIVE_THRESHOLD = 6
-    STUCK_THRESHOLD = 3
+    STUCK_THRESHOLD = 120  # 5초 x 120 = 10분
     MISSING_THRESHOLD = 2
 
     while True:
@@ -322,8 +337,17 @@ def monitor_forge_process():
             consecutive_unresponsive = 0
 
         stuck, stuck_reason = forge_stuck(timeout=5)
+        if stuck and forge_log_active():
+            if consecutive_stuck:
+                log_event("stuck 후보였으나 Forge 로그 활동 감지 — 카운터 초기화")
+            stuck = False
+            consecutive_stuck = 0
+
         if stuck:
             consecutive_stuck += 1
+            if consecutive_stuck == 1:
+                log_event("stuck 후보 관측 시작 (%s) — %d초간 지속되면 재시작"
+                          % (stuck_reason, STUCK_THRESHOLD * 5))
             if consecutive_stuck >= STUCK_THRESHOLD:
                 do_restart(reason=f"stuck state: {stuck_reason} for {consecutive_stuck * 5}s")
                 consecutive_stuck = 0
