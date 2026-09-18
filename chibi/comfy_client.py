@@ -139,6 +139,8 @@ def main():
     p.add_argument("--scheduler", default="simple")
     p.add_argument("--seed-base", type=int, default=None, help="고정하면 대조군 비교 가능")
     p.add_argument("--out", default="./out")
+    p.add_argument("--lora", help="캐릭터 LoRA 교체용. 파일명을 직접 지정하면 probe 로 추론하지 않는다")
+    p.add_argument("--lora-strength", type=float, default=1.0)
     a = p.parse_args()
 
     if a.cmd == "probe":
@@ -153,8 +155,14 @@ def main():
         sys.exit("--positive 또는 --prompt-file 필요")
 
     w, h = (int(x) for x in a.size.lower().split("x"))
-    lora = resolve_lora(a.host, tpl["2"]["inputs"]["lora_name"])
-    print("LoRA 확정:", lora)
+    if a.lora:
+        lora = a.lora
+        print("LoRA 지정:", lora)
+    else:
+        lora = resolve_lora(a.host, tpl["2"]["inputs"]["lora_name"])
+        print("LoRA 확정:", lora)
+    tpl["2"]["inputs"]["strength_model"] = a.lora_strength
+    tpl["2"]["inputs"]["strength_clip"] = a.lora_strength
     os.makedirs(a.out, exist_ok=True)
 
     cid = str(uuid.uuid4())

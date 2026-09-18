@@ -47,7 +47,7 @@ def png_text_chunks(path):
 
 def parse_comfy(graph):
     """워크플로 그래프에서 관심 있는 값만 추려낸다."""
-    r = {"ckpt": None, "loras": [], "positive": None, "negative": None, "sampler": {}, "size": None}
+    r = {"ckpt": None, "unet": None, "clip": None, "vae": None, "loras": [], "positive": None, "negative": None, "sampler": {}, "size": None}
     ks = None
     for node in graph.values():
         if not isinstance(node, dict):
@@ -55,6 +55,12 @@ def parse_comfy(graph):
         ct, ins = node.get("class_type"), node.get("inputs", {})
         if ct == "CheckpointLoaderSimple":
             r["ckpt"] = ins.get("ckpt_name")
+        elif ct in ("UNETLoader", "UNETLoaderGGUF"):
+            r["unet"] = ins.get("unet_name")
+        elif ct in ("CLIPLoader", "DualCLIPLoader"):
+            r["clip"] = ins.get("clip_name") or ins.get("clip_name1")
+        elif ct == "VAELoader":
+            r["vae"] = ins.get("vae_name")
         elif ct in ("LoraLoader", "LoraLoaderModelOnly"):
             r["loras"].append({"name": ins.get("lora_name"),
                                "model": ins.get("strength_model"),
@@ -95,7 +101,13 @@ def report(path, raw=False, summary=False):
                 s.get("seed", s.get("noise_seed")), d["size"]))
             return
         print("=== %s  [ComfyUI]" % path)
-        print("  checkpoint :", d["ckpt"])
+        if d["ckpt"]:
+            print("  checkpoint :", d["ckpt"])
+        else:
+            print("  (분리 파일 구성)")
+            for k, lbl in (("unet", "unet"), ("clip", "text encoder"), ("vae", "vae")):
+                if d[k]:
+                    print("  %-10s : %s" % (lbl, d[k]))
         for l in d["loras"]:
             print("  lora       : %s  (model %s / clip %s)" % (l["name"], l["model"], l["clip"]))
         if not d["loras"]:
