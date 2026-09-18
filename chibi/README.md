@@ -78,3 +78,36 @@ python3 comfy_client.py --host https://<tunnel> run -n 20 \
 ```
 
 `prompts.json` 은 `{"positive": "...", "negative": "..."}` 형식.
+
+## 포드 없이 LoRA 이름과 시드 복원하기
+
+ComfyUI 는 출력 PNG 의 tEXt 청크(`prompt`)에 워크플로 JSON 을 통째로 넣는다.
+따라서 그 사이트에서 뽑은 PNG 가 한 장이라도 있으면, 포드가 죽어 있어도
+UI 에서 잘려 보이던 LoRA 전체 파일명과 실제 사용된 seed 를 복원할 수 있다.
+`probe` 를 대신하는 경로다.
+
+```bash
+python3 read_png_workflow.py IMG.png              # 요약
+python3 read_png_workflow.py IMG.png --raw        # 워크플로 JSON 전문
+python3 read_png_workflow.py out/*.png --summary  # 여러 장 한 줄씩
+```
+
+A1111/Forge 출력(`parameters` 청크)도 함께 읽는다.
+
+## 체크포인트 동일성 확인
+
+보유 중인 아니마가 원본과 같은 배포본인지는 SHA256 으로 가른다.
+
+```bash
+sha256sum animality_baseFlat_trubo.safetensors
+```
+
+원본 해시를 구할 수 없다면 차선책은 고정 시드 대조다. PNG 에서 복원한 seed 와
+파라미터를 그대로 넣어 재생성했을 때 원본과 같은 그림이 나오면 같은 가중치다.
+
+```bash
+python3 comfy_client.py --host http://127.0.0.1:8188 run -n 1 \
+    --seed-base <복원한 seed> --prompt-file prompts.json
+```
+
+미세하게 다르면 버전 차이, 완전히 다르면 다른 모델이다.
