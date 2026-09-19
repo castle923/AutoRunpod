@@ -14,6 +14,48 @@
 | 모델 가중치 2개 | **재현 불가.** 원본에서 반출 필요 |
 | 특정 이미지 1:1 | 시드 필요. PNG 메타데이터에서 추출 |
 
+## 부품 목록 (캐릭터 LoRA 제외)
+
+캐릭터 LoRA 는 교체 가능한 부품이므로 재현 대상에서 뺀다. 나머지는 아래가 전부다.
+
+| # | 부품 | 입수처 | 상태 |
+|---|---|---|---|
+| 1 | ComfyUI (최신 리비전) | 공개 | 설치만 하면 됨 |
+| 2 | Animality 체크포인트 | Civitai 모델 2532722 | 사용자가 직접 다운로드. MODEL.md 참조 |
+| 3 | 생성 파라미터 / 워크플로 | 이 저장소 | workflow_anima.json |
+| 4 | **Danbooru 태그 사전** | 공개 | 아래 |
+| 5 | Chibi 프론트엔드 정적 파일 | **원본 포드에만 존재** | 유일한 진짜 블로커 |
+| 6 | nginx 서브패스 + 터널 | 이 저장소 | 아래 구성 예시 |
+
+5번을 못 구해도 환경 자체는 완전히 동작한다. comfy_client.py 로 API 를 직접
+쓰면 되고, 잃는 것은 그 UI 뿐이다.
+
+## 태그 자동완성 사전
+
+Chibi 의 자동완성은 a1111-sd-webui-tagcomplete 포맷의 danbooru.csv 를 쓴다.
+CSS 변수 --color-tag-1~5 가 Danbooru API 의 태그 타입 번호와 정확히 대응한다.
+
+```
+tag_name,category,post_count,"aliases"
+1girl,0,4114588,"1girls,sole_female"
+highres,5,3008413,"high_res,high_resolution,hires"
+```
+
+| 번호 | 카테고리 | CSS 변수 |
+|---|---|---|
+| 0 | General | --color-tag-1 |
+| 1 | Artist | --color-tag-2 |
+| 3 | Copyright | --color-tag-3 |
+| 4 | Character | --color-tag-4 |
+| 5 | Meta | --color-tag-5 |
+
+헤더 행은 없다. count 와 aliases 는 형식상 선택이지만 기본 배포본에는 항상 들어 있다.
+원본은 github.com/DominikDoom/a1111-sd-webui-tagcomplete 의 tags/danbooru.csv.
+
+Anima 는 아티스트 태그에 @ 접두가 필요하고(없으면 효과가 매우 약함) Danbooru 와
+Gelbooru 가 갈리는 태그는 Gelbooru 쪽을 쓰므로, 사전을 그대로 쓰되 프롬프트
+작성 규칙은 OBSERVED.md 의 Anima 항목을 따른다.
+
 ## 원본 포드에서 반드시 가져와야 하는 것
 
 ```
