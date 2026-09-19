@@ -10,8 +10,10 @@
 #   4. config.json, ui-config.json을 Forge 실제 경로에 배치
 #   5. scripts/*, dynamic_prompts/*를 /workspace로 배치, 실행 권한 부여
 #   6. submit_job.py 안의 포드 URL을 현재 포드 주소로 자동 치환
-#   7. crontab에 5종 자동화(auto_clean_kernels, preventive_restart, watchdog,
-#      auto_restore_on_boot, auto_backup_workspace)를 중복 없이 등록
+#   7. 리스너 서버(/workspace/listener)와 restart_forge_clean.sh 배치
+#   8. nginx에 Gradio SSE 블록이 든 설정 배치 후 reload
+#   9. crontab 등록 (auto_clean_kernels, auto_backup_workspace, auto_restore_on_boot,
+#      그리고 @reboot 리스너 기동)
 #   8. auto_restore_on_boot.sh를 즉시 1회 실행 — 재부팅을 기다리지 않고 바로
 #      LoRA/체크포인트/dynamic_prompts를 gdrive에서 복원 시작
 #
@@ -111,13 +113,53 @@ else
   log "RUNPOD_POD_ID not set or submit_job.py missing — pod URL in submit_job.py must be fixed manually"
 fi
 
-# 7. crontab 5종 등록 (중복 없이)
+# 6-2. 리스너 서버 배치 (감시·자동복구·업로드 API). 이게 없으면 Forge가 죽어도
+#      아무도 되살리지 않는다.
+mkdir -p /workspace/listener
+cp "$CLONE_DIR"/listener/server.py /workspace/listener/server.py 2>/dev/null
+cp "$CLONE_DIR"/listener/start.sh  /workspace/listener/start.sh 2>/dev/null
+chmod +x /workspace/listener/start.sh 2>/dev/null
+cp "$CLONE_DIR"/scripts/restart_forge_clean.sh /workspace/restart_forge_clean.sh 2>/dev/null
+chmod +x /workspace/restart_forge_clean.sh 2>/dev/null
+log "listener + restart_forge_clean.sh deployed"
+
+# 6-3. nginx 설정 배치.
+#      기본 설정은 Gradio 4.x 의 SSE 스트림(/queue/data)을 버퍼링해서, 생성은
+#      끝났는데 브라우저에 결과가 도착하지 않는 상태를 만들 수 있다.
+#      /etc/nginx 는 /workspace 밖이라 컨테이너가 바뀌면 사라지므로 매번 배치한다.
+if [ -f "$CLONE_DIR/config/nginx.conf" ]; then
+  cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig 2>/dev/null
+  cp "$CLONE_DIR/config/nginx.conf" /etc/nginx/nginx.conf
+  if nginx -t >/dev/null 2>&1; then
+    nginx -s reload 2>/dev/null || nginx 2>/dev/null
+    log "nginx.conf deployed and reloaded"
+  else
+    cp /etc/nginx/nginx.conf.orig /etc/nginx/nginx.conf 2>/dev/null
+    log "WARNING: nginx.conf 검증 실패 — 원본으로 되돌림"
+  fi
+fi
+
+# 6-4. rclone.conf 를 /workspace 안에도 둔다. 스크립트들이 --config 로 이 경로를
+#      쓰고, /root/.config 는 컨테이너가 바뀌면 사라지기 때문이다.
+if [ -f /root/.config/rclone/rclone.conf ]; then
+  cp /root/.config/rclone/rclone.conf /workspace/rclone.conf
+  chmod 600 /workspace/rclone.conf
+  log "rclone.conf mirrored to /workspace (스크립트들이 참조하는 경로)"
+fi
+
+# 7. crontab 등록 (중복 없이)
+#
+#    watchdog.sh 와 preventive_restart.py 는 의도적으로 제외한다. 둘 다 독자적으로
+#    pkill 후 Forge 를 직접 띄우는데, 리스너도 5초마다 감시하다가 프로세스가 사라지면
+#    재시작한다. 두 주체가 동시에 띄우면 Forge 가 중복 기동되어 포트 3001 점유에
+#    실패한다. 게다가 preventive_restart.py 는 작업이 돌고 있으면 무기한 미루므로,
+#    정작 막아야 할 긴 배치 도중의 메모리 누적에는 아무 효과가 없다.
+#    메모리 감시는 리스너가 직접 한다 (80% 경고 / 90%+ 유휴일 때만 재시작).
 CRON_ENTRIES=(
   "*/5 * * * * /usr/bin/python3 /workspace/scripts/auto_clean_kernels.py >> /workspace/logs/auto_clean_kernels.log 2>&1"
-  "*/10 * * * * /usr/bin/python3 /workspace/scripts/preventive_restart.py >> /workspace/logs/preventive_restart_cron.log 2>&1"
-  "@reboot /workspace/scripts/watchdog.sh >> /workspace/logs/watchdog_stdout.log 2>&1"
-  "@reboot /workspace/scripts/auto_restore_on_boot.sh >> /workspace/logs/auto_restore.log 2>&1"
   "*/30 * * * * /workspace/scripts/auto_backup_workspace.sh >> /workspace/logs/auto_backup.log 2>&1"
+  "@reboot /workspace/scripts/auto_restore_on_boot.sh >> /workspace/logs/auto_restore.log 2>&1"
+  "@reboot /workspace/listener/start.sh >> /workspace/logs/listener_boot.log 2>&1"
 )
 current_cron=$(crontab -l 2>/dev/null || true)
 new_cron="$current_cron"
@@ -129,12 +171,23 @@ $entry"
   fi
 done
 echo "$new_cron" | crontab -
-log "crontab synced (5 automation entries ensured)"
+log "crontab synced (4 automation entries ensured)"
 
 # 8. auto_restore_on_boot.sh 즉시 1회 실행 (재부팅을 기다리지 않고 바로 복원 시작)
 if [ -f /workspace/scripts/auto_restore_on_boot.sh ]; then
   log "running auto_restore_on_boot.sh once now (LoRA/checkpoint/dynamic_prompts restore)"
   bash /workspace/scripts/auto_restore_on_boot.sh
+fi
+
+# 9. 리스너 즉시 기동 (재부팅을 기다리지 않는다)
+if [ -x /workspace/listener/start.sh ]; then
+  bash /workspace/listener/start.sh
+  sleep 5
+  if curl -sS --max-time 5 http://localhost:5000/health >/dev/null 2>&1; then
+    log "listener started and responding on :5000"
+  else
+    log "WARNING: listener 기동 확인 실패 — 'bash /workspace/listener/start.sh' 로 수동 확인 필요"
+  fi
 fi
 
 log "=== bootstrap_pod.sh finished ==="

@@ -1,76 +1,59 @@
-# 모니터링 루틴 (참고용 문서)
+# 모니터링 체계
 
-**주의**: 이 문서는 참고/기록용입니다. 아래 내용은 실행 코드가 아니라 RunPod 계정에 연결된
-Claude Code Remote의 "Routine"(예약 트리거) 설정을 그대로 옮겨 적은 것입니다.
-**GitHub 저장소를 복사하거나 이 문서를 읽는다고 해서 감시 기능이 되살아나지 않습니다.**
-Routine은 포드나 이 저장소가 아니라 사용자의 Claude 계정/세션에 저장되어 있으며,
-동일한 방식으로 다시 동작하게 하려면 Claude 세션에서 Routine을 새로 만들어야 합니다.
+갱신: 2026-09-15
 
-작성 시각(KST): 2026-09-03 10:20
+## 1. 리스너 서버 (on-pod, 상시 가동)
 
-## 1. HFdyd 포드 정밀검사 (매시간)
+2026-09-15부터 포드 내부에 Flask 기반 리스너 서버가 상주하며, 기존 watchdog.sh의 역할을
+대체·확장한다. 기존 watchdog은 단순 프로세스 존재 여부만 체크했지만, 리스너 서버는
+Forge API 응답성까지 확인하고 상태를 JSON으로 기록한다.
 
-- **주기**: 매시간 정각 2분 (`2 * * * *`, UTC 기준)
-- **목적**: 포드 생존 여부, Forge/watchdog/crontab 정상 동작, GPU/디스크/RAM 상태,
-  Jupyter 커널 개수, rclone 인증, LoRA 무결성, 최근 크래시 이력을 점검
-- **배치 실행 중 처리 규칙** (2026-09-02 수정):
-  - 이미지 생성 배치가 진행 중이면(Forge progress의 `state.job`이 비어있지 않으면)
-    이번 사이클의 점검을 완전히 보류(조용히 스킵, 알림도 없음)
-  - 배치가 막 끝났고 아직 완료 처리가 안 된 프로젝트가 있으면, 먼저 표준 완료 프로세스
-    (zip 압축 → `gdrive:<프로젝트명>/` 업로드 → `런포드 백업/압축파일/` 미러링 → 무결성 검증)를
-    전부 마친 뒤에야 정밀검사 진행
-  - 완전 idle 상태면 바로 정밀검사 진행
-- **점검 항목**:
-  1. Forge(3000/3001) API 응답, watchdog.sh/launch.py 프로세스, crontab 3종 등록 여부
-  2. GPU 온도/사용률/스로틀링/메모리
-  3. `/workspace` 디스크 여유공간
-  4. 컨테이너 RAM 사용량
-  5. Jupyter 좀비 커널 개수
-  6. rclone.conf 존재/인증 여부 (없으면 `/workspace/rclone_backup_config/rclone.conf`에서 자동 복구)
-  7. LoRA 668개 헤더/오프셋 무결성 검증
-  8. 포드 LoRA 폴더 개수 vs `gdrive:런포드 백업/Lora/` 개수 대조
-  9. `watchdog_auto.log` 최근 크래시 이력 요약
-- **문제 발견 시**: 안전하게 복구 가능한 것은 즉시 조치하고, 브리핑 마크다운 파일 작성 후 전송
-- **항상**: 점검 종료 시 결과 요약을 모바일 푸시 알림으로 전송 (정상은 짧게, 배치 진행 중 스킵은 알림 없음)
+### 동작 방식
+- **프로세스 감시** (2초 간격): psutil로 `launch.py` 프로세스 존재 확인. 죽으면
+  `restart_forge_clean.sh`로 자동 재시작. 재시작 후 최대 120초간 Forge API 응답 대기.
+- **재시작 폭풍 방지**: 5분 내 3회 이상 재시작 시 자동 재시작 중단, `restart_storm_stopped: true` 기록.
+- **배치 진행 추적** (5초 간격): Forge `/sdapi/v1/progress` 폴링. job/progress 정보를
+  `state.json`에 기록. 배치 100% 완료 감지 시 `batch_completed: true` 기록.
+- **HTTP API** (포트 5000): `/health`, `/status`, `/restart`, `/upload` 엔드포인트 제공.
 
-### ⚠️ 중요 보정 (2026-09-03): RAM 상한은 `free -h`의 251GiB가 아니라 cgroup 제한값
+### 배포 위치
+```
+/workspace/listener/
+├── server.py    # 메인 서버
+├── start.sh     # tmux 실행 스크립트
+├── state.json   # 상태 파일 (자동 생성)
+└── listener.log # 로그
+```
 
-`free -h`는 호스트 전체 메모리(251GiB)를 보여주지만, 실제 컨테이너가 쓸 수 있는 상한은
-`cat /sys/fs/cgroup/memory.max`로 확인한 **약 57.7GiB**(61999996928 bytes)이다.
-기존 크래시 방지 규칙("RAM 35GB 이상이면 대기")은 작은 포드 기준으로 작성된 것인데, 이 상한이
-251GiB가 아니라 ~58GiB라는 걸 몰랐다면 "251GiB 중 47GB 사용 = 여유 충분"처럼 잘못 판단할 위험이
-있다 (실제로는 58GiB 중 47GB = 상당히 빠듯한 상태). 무거운 백그라운드 작업(ComfyUI 설치 등) 전에는
-반드시 `free -h`가 아니라 cgroup 한도 대비 사용량을 기준으로 판단할 것.
+### restart_forge_clean.sh
+`env -i`로 환경변수를 완전 격리하여 Forge를 재시작한다. Jupyter의 `MPLBACKEND=module://matplotlib_inline.backend_inline`
+환경변수가 Forge에 유입되어 크래시를 일으키는 문제를 원천 차단하는 핵심 스크립트.
 
-### ⚠️ 알려진 버그 수정 (2026-09-03): `auto_clean_kernels.py`가 실제로는 커널 누적을 못 막고 있었음
+## 2. Cron Jobs (on-pod, 상시 가동)
 
-기존 스크립트는 "API 목록에 없는 좀비 프로세스"만 kill했고, **API에 정상 등록되어 idle 상태로
-방치된 커널은 전혀 정리하지 않았다** — `jupyter_exec.py` 류 도구가 호출마다 새 커널을 만들고
-절대 닫지 않는 게 누적의 실제 원인인데, 5분마다 cron이 돌아도 이 부분을 건드리지 못해 커널이
-52~59개까지 쌓였었다. 원인은 두 가지: (1) idle 등록 커널을 DELETE하는 로직 자체가 없었음,
-(2) 처음 추가했을 때도 Jupyter API가 DELETE에 `X-XSRFToken` 헤더를 요구하는데 빠뜨려서 403으로
-전부 실패하고 있었음. 두 가지 다 수정 후 테스트: 59개 → 23개로 즉시 정리됨. 이제 idle 20분
-이상인 등록 커널을 REST API로 정상 삭제한다.
+| 주기 | 스크립트 | 용도 |
+|------|----------|------|
+| 5분 | `auto_clean_kernels.py` | Jupyter idle 커널 정리 (idle 20분+ 커널 DELETE) |
+| 10분 | `preventive_restart.py` | 5시간마다 예방적 Forge 재시작 (배치 idle일 때만) |
+| 30분 | `auto_backup_workspace.sh` | 워크스페이스 스냅샷 → gdrive 백업 |
+| @reboot | `auto_restore_on_boot.sh` | LoRA/체크포인트/dynamic_prompts 자동 복원 |
 
-## 2. RunPod 잔여 시간 24시간 경고
+## 3. Claude Routine (외부, 참고용)
 
-- **주기**: 매시간 정각 8분 (`8 * * * *`, UTC 기준)
-- **목적**: RunPod 계정 잔액(`clientBalance`)과 시간당 소비율(`currentSpendPerHr`)을 조회해서
-  잔여 사용 가능 시간을 계산
-- **판단 규칙**:
-  - 잔여 시간 24시간 초과: 알림 없이 조용히 통과
-  - 24시간 이하로 진입: 즉시 푸시 알림 ("⚠️ RunPod 잔여 사용 가능 시간이 24시간 이하입니다")
-  - 이후 24시간 이하가 유지되는 동안은 6시간에 한 번만 재알림 (스팸 방지)
-  - 12시간 이하로 더 줄어들면 매 사이클마다 알림
+아래 Routine들은 포드 안이 아니라 사용자의 Claude 계정에 등록된 예약 트리거다.
+GitHub 저장소를 복사하거나 이 문서를 읽는다고 해서 감시 기능이 되살아나지 않으며,
+동일한 방식으로 다시 동작하게 하려면 Claude 세션에서 Routine을 새로 만들어야 한다.
 
-## 3. 프로젝트별 진척도 모니터링 (상시 아님, 필요 시 수동 등록)
+### HFdyd 포드 정밀검사 (매시간)
+- GPU 온도/사용률/메모리, 디스크 여유공간, RAM(cgroup 기준 ~58GiB), Jupyter 커널 수,
+  rclone 인증, LoRA 무결성 등을 점검
+- 배치 실행 중이면 스킵, 배치 완료 직후면 완료 처리(zip/업로드/검증) 후 점검
 
-이미지 생성 프로젝트("OO_r_18" 형태로 명명)가 시작되면, 위 Routine과는 별개로 세션이
-직접 20~30분 간격의 자체 체크인(ScheduleWakeup)을 걸어서:
-- Forge API의 `progress`/`state.job`으로 진행률(Batch N/100), 생성된 이미지 수를 추적
-- 배치가 100% 완료되면 표준 완료 프로세스(zip/업로드/미러링/검증)를 트리거
-- 크래시나 이상 징후 발견 시 즉시 사용자에게 보고
+### RunPod 잔여 시간 24시간 경고 (매시간)
+- RunPod 계정 잔액/시간당 소비율로 잔여 사용 가능 시간 계산
+- 24시간 이하 진입 시 푸시 알림, 12시간 이하면 매 사이클 알림
 
-이 체크인은 Routine처럼 영구 등록된 것이 아니라, 프로젝트 진행 중에만 세션이 스스로
-재예약하는 임시 루프이므로 별도로 "복원"할 대상이 없습니다 (새 프로젝트를 시작할 때마다
-Claude 세션이 다시 설정함).
+### 참고: cgroup RAM 상한
+`free -h`는 호스트 전체 메모리(251GiB)를 표시하지만, 실제 컨테이너 상한은
+`cat /sys/fs/cgroup/memory.max` 기준 **~57.7GiB**(61999996928 bytes)이다.
+RAM 판단 시 반드시 cgroup 한도 대비로 판단할 것.

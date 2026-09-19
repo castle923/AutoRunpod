@@ -1,0 +1,38 @@
+{
+  "_comment": "Hugging Face 공식 분리 파일(circlestone-labs/Anima)로 관측 세팅을 근사 재현한다. 노드 구성은 그 저장소 example.png 에 박힌 공식 워크플로에서 그대로 가져왔다. 원본 animality_baseFlat_trubo.safetensors 를 구했다면 workflow_anima.json 쪽을 쓴다.",
+  "44": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "anima-preview3-base.safetensors", "weight_dtype": "default" }
+  },
+  "45": {
+    "class_type": "CLIPLoader",
+    "inputs": { "clip_name": "qwen_3_06b_base.safetensors", "type": "stable_diffusion", "device": "default" }
+  },
+  "15": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "qwen_image_vae.safetensors" }
+  },
+  "2": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "lora_name": "anima-turbo-lora-v0.2.safetensors",
+      "strength_model": 1.0,
+      "strength_clip": 1.0,
+      "model": ["44", 0],
+      "clip":  ["45", 0]
+    }
+  },
+  "3": { "class_type": "CLIPTextEncode", "inputs": { "text": "%POSITIVE%", "clip": ["2", 1] } },
+  "4": { "class_type": "CLIPTextEncode", "inputs": { "text": "%NEGATIVE%", "clip": ["2", 1] } },
+  "5": { "class_type": "EmptyLatentImage", "inputs": { "width": 1536, "height": 1536, "batch_size": 1 } },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 0, "steps": 16, "cfg": 1.0,
+      "sampler_name": "er_sde", "scheduler": "simple", "denoise": 1.0,
+      "model": ["2", 0], "positive": ["3", 0], "negative": ["4", 0], "latent_image": ["5", 0]
+    }
+  },
+  "7": { "class_type": "VAEDecode", "inputs": { "samples": ["6", 0], "vae": ["15", 0] } },
+  "8": { "class_type": "SaveImage", "inputs": { "images": ["7", 0], "filename_prefix": "anima" } }
+}
