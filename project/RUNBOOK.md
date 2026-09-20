@@ -21,7 +21,10 @@ ps aux | grep "ComfyUI/main.py" | grep -v grep
 # 중지
 pkill -f "ComfyUI/main.py"
 
-# 재시작
+# 재시작 (LD_LIBRARY_PATH 설정 필수 — cuDNN 9)
+/workspace/start_comfyui.sh
+# 또는 수동:
+export LD_LIBRARY_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/cudnn/lib:/usr/local/lib/python3.10/dist-packages/nvidia/cublas/lib:$LD_LIBRARY_PATH
 source /workspace/venvs/comfyui/bin/activate
 cd /workspace/ComfyUI
 nohup python3 main.py --listen 0.0.0.0 --port 8188 < /dev/null > /workspace/logs/comfyui.log 2>&1 &
