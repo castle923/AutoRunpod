@@ -30,7 +30,7 @@
 - [x] Forge 응답 (3000) — Docker 이미지 내장, launch.py 가동 중
 - [x] ComfyUI 응답 (8188) — torch 2.5.1+cu121, 가동 중
 - [x] 리스너 응답 (5000) — Flask listener 가동 중, 메모리 모니터링 활성
-- [ ] hfdown 검증 완료
+- [x] hfdown 검증 완료 — HF 토큰 유효, Agnus6728/wai 접근 확인
 
 ## Civitai 파일 업로드 경로
 ```

@@ -5,6 +5,7 @@
 | Design | DESIGN_DONE | 2026-09-20T00:00Z | User | 계획서 v1.5 확정 |
 | Claude Infra | SERVER_READY | 2026-09-20T17:40Z | Claude | ComfyUI 8188 가동 (torch 2.5.1+cu121, RTX 3090 24GB) |
 | Codex Download | PLANNED | - | Codex | collections.yaml 확정 대기 |
+| hfdown | HFDOWN_VERIFIED | 2026-09-21T00:40Z | Claude | HF 토큰 유효, Agnus6728/wai 접근 확인 (17파일, ~78GB) |
 | Handoff | PENDING | - | - | - |
 | Integrity | PENDING | - | - | - |
 
@@ -14,6 +15,7 @@
 - `COMPLETE` (최종)
 
 ## Recent Logs
+- 2026-09-21T00:40Z: hfdown 검증 완료 — HF 토큰 유효, Agnus6728/wai private repo 접근 확인 (17파일 ~78GB)
 - 2026-09-20T23:05Z: Bootstrap 완료 — Forge 가동 확인(port 3000), rclone.conf 배치, 스크립트 5종 crontab 등록, config.json/ui-config.json 배치
 - 2026-09-20T18:10Z: Listener 서버 가동 완료 (port 5000, Flask + tmux auto-restart, 메모리 62GB 상한 감시)
 - 2026-09-20T17:40Z: ComfyUI 서버 가동 완료 (port 8188, torch 2.5.1+cu121, RTX 3090 24GB VRAM)
