@@ -160,6 +160,7 @@ CRON_ENTRIES=(
   "*/30 * * * * /workspace/scripts/auto_backup_workspace.sh >> /workspace/logs/auto_backup.log 2>&1"
   "@reboot /workspace/scripts/auto_restore_on_boot.sh >> /workspace/logs/auto_restore.log 2>&1"
   "@reboot /workspace/listener/start.sh >> /workspace/logs/listener_boot.log 2>&1"
+  "0 */6 * * * /workspace/scripts/sync_rclone_conf.sh >> /workspace/logs/sync_rclone.log 2>&1"
 )
 current_cron=$(crontab -l 2>/dev/null || true)
 new_cron="$current_cron"
