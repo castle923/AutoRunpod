@@ -1,16 +1,17 @@
 # 모델 복원 상태 (Google Drive → Pod)
 
-> **최종 업데이트**: 2026-09-21T01:00Z
+> **최종 업데이트**: 2026-09-21T07:24Z
 > **실행 주체**: Claude
 > **스크립트**: `/workspace/scripts/auto_restore_on_boot.sh`
 
-## 현재 상태: `RESTORING`
+## 현재 상태: `RESTORE_DONE`
 
 | 항목 | 소스 (gdrive) | 대상 (pod) | 상태 |
 |---|---|---|---|
-| LoRA | `gdrive:런포드 백업/Lora/` (680개) | `/workspace/stable-diffusion-webui-forge/models/Lora/` | 전송 중 |
-| Checkpoint | `gdrive:런포드 백업/체크포인트/` | `/workspace/stable-diffusion-webui-forge/models/Stable-diffusion/` | 대기 (LoRA 완료 후) |
-| dynamic_prompts | `gdrive:런포드 백업/extensions/sd-dynamic-prompts/` | `/workspace/stable-diffusion-webui-forge/extensions/sd-dynamic-prompts/` | 대기 |
+| LoRA | `gdrive:런포드 백업/Lora/` (681개) | `/workspace/stable-diffusion-webui-forge/models/Lora/` (149GB) | 완료 |
+| Checkpoint | `gdrive:런포드 백업/체크포인트/` | `/workspace/stable-diffusion-webui-forge/models/Stable-diffusion/` (6.9GB) | 완료 |
+| dynamic_prompts | `gdrive:런포드 백업/extensions/sd-dynamic-prompts/` | `/workspace/stable-diffusion-webui-forge/extensions/sd-dynamic-prompts/` | 완료 (이전 배치 존재) |
+| 무결성 검사 | `verify_lora_integrity.py` | 681개 검사 | 통과 (corrupted 0) |
 
 ## 복원 명령
 
