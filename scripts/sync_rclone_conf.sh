@@ -16,7 +16,7 @@
 set -u
 LOGFILE="/workspace/logs/sync_rclone.log"
 BACKUP_DIR="/workspace/_bootstrap_runpod_backup"
-POD_CONF="/workspace/rclone.conf"
+POD_CONF="/root/.config/rclone/rclone.conf"
 REPO_CONF="$BACKUP_DIR/secrets/rclone.conf"
 LOCKFILE="/workspace/logs/sync_rclone.lock"
 mkdir -p /workspace/logs

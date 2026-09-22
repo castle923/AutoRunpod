@@ -27,7 +27,7 @@ import sys
 import zipfile
 
 OUTPUTS_ROOT = "/workspace/stable-diffusion-webui-forge/output/txt2img-images"
-RCLONE_CONFIG = "/workspace/rclone.conf"
+RCLONE_CONFIG = "/root/.config/rclone/rclone.conf"
 RCLONE_REMOTE = "gdrive:"
 MIRROR_DIR = "런포드 백업/압축파일/"
 

@@ -35,7 +35,7 @@ MEM_WARN_PCT = 80.0
 MEM_HIGH_PCT = 90.0
 MEM_RESTART_COOLDOWN = 900  # 메모리 사유 재시작 후 최소 대기(초)
 NO_LIMIT = 1 << 60
-RCLONE_CONFIG = "/workspace/rclone.conf"
+RCLONE_CONFIG = "/root/.config/rclone/rclone.conf"
 RCLONE_REMOTE = "gdrive:"
 
 app = Flask(__name__)
