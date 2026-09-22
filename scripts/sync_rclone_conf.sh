@@ -26,7 +26,6 @@ log() {
 }
 
 # 동시 실행 방지 (flock)
-# exec 9> 로 잠금 파일 열기를 먼저 검증하고, flock 실패를 구분한다
 if ! exec 9>"$LOCKFILE"; then
   log "ERROR: Cannot open lock file $LOCKFILE"
   exit 1
@@ -61,77 +60,95 @@ fi
 
 BACKUP_REPO_URL="https://github.com/castle923/Runpod-Backup.git"
 
-# rclone.conf에서 gdrive 섹션의 지정 필드를 추출하는 공용 함수
-# 파서 종료 코드를 검사하여 파싱 실패와 빈 값을 구분한다
+# rclone.conf에서 [gdrive] 섹션의 필드를 추출하는 공용 함수
+# [gdrive] 섹션이 없거나 type=drive가 아니면 에러로 종료한다
 extract_rclone_field() {
   local conf_path="$1"
   local field="$2"
   python3 -c "
 import configparser, json, sys
+from datetime import datetime, timezone
+
 c = configparser.ConfigParser()
-read_ok = c.read('$conf_path')
+read_ok = c.read('${conf_path}')
 if not read_ok:
-    print('__PARSE_ERROR__', file=sys.stderr)
+    print('PARSE_ERROR: cannot read file', file=sys.stderr)
     sys.exit(2)
-gdrive = None
-for s in c.sections():
-    if c.get(s, 'type', fallback='') == 'drive':
-        gdrive = s
-        break
-if gdrive is None:
-    for s in c.sections():
-        gdrive = s
-        break
-if gdrive is None:
-    print('__NO_SECTION__', file=sys.stderr)
+
+if not c.has_section('gdrive'):
+    print('NO_GDRIVE_SECTION: [gdrive] section not found', file=sys.stderr)
     sys.exit(2)
-if '$field' == 'client_id':
-    print(c.get(gdrive, 'client_id', fallback=''))
-elif '$field' == 'expiry':
-    t = c.get(gdrive, 'token', fallback='')
+
+if c.get('gdrive', 'type', fallback='') != 'drive':
+    print('TYPE_MISMATCH: [gdrive] type is not drive', file=sys.stderr)
+    sys.exit(2)
+
+if '${field}' == 'client_id':
+    print(c.get('gdrive', 'client_id', fallback=''))
+elif '${field}' == 'expiry_utc':
+    t = c.get('gdrive', 'token', fallback='')
     if not t:
-        print('__NO_TOKEN__', file=sys.stderr)
+        print('NO_TOKEN: token field empty or missing', file=sys.stderr)
         sys.exit(2)
     try:
         tj = json.loads(t)
     except json.JSONDecodeError:
-        print('__BAD_TOKEN_JSON__', file=sys.stderr)
+        print('BAD_TOKEN_JSON: cannot parse token JSON', file=sys.stderr)
         sys.exit(2)
     exp = tj.get('expiry', '')
     if not exp:
-        print('__NO_EXPIRY__', file=sys.stderr)
+        print('NO_EXPIRY: expiry not in token', file=sys.stderr)
         sys.exit(2)
-    print(exp)
+    # ISO 8601 파싱 — timezone offset 포함/미포함 모두 처리
+    for fmt in ('%Y-%m-%dT%H:%M:%S.%f%z', '%Y-%m-%dT%H:%M:%S%z',
+                '%Y-%m-%dT%H:%M:%S.%fZ', '%Y-%m-%dT%H:%M:%SZ',
+                '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S'):
+        try:
+            dt = datetime.strptime(exp.replace('Z', '+00:00') if fmt.endswith('Z') else exp, fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            print(dt.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+            sys.exit(0)
+        except ValueError:
+            continue
+    print('BAD_EXPIRY: cannot parse date: ' + exp, file=sys.stderr)
+    sys.exit(2)
 " 2>/dev/null
 }
 
-# 1. 리포 클론 또는 pull (토큰은 헤더로 전달, .git/config에 남기지 않음)
-GIT_AUTH_HEADER="Authorization: Bearer ${GITHUB_TOKEN}"
-
+# fetch URL과 push URL을 독립적으로 검사하여 내장 인증정보를 제거
 sanitize_origin_url() {
   local repo_dir="$1"
   local clean_url="$2"
-  local _url
+  local _url _push_url _did_sanitize=false
+
   _url=$(git -C "$repo_dir" remote get-url origin 2>/dev/null || true)
   if [[ "$_url" == *"@"* ]] || [[ "$_url" == *"ghp_"* ]] || [[ "$_url" == *"gho_"* ]]; then
     if ! git -C "$repo_dir" remote set-url origin "$clean_url"; then
-      log "ERROR: Failed to sanitize origin URL in $repo_dir"
-      exit 1
+      log "ERROR: Failed to sanitize fetch URL in $repo_dir"
+      return 1
     fi
-    local _push_url
-    _push_url=$(git -C "$repo_dir" remote get-url --push origin 2>/dev/null || true)
-    if [ -n "$_push_url" ] && { [[ "$_push_url" == *"@"* ]] || [[ "$_push_url" == *"ghp_"* ]] || [[ "$_push_url" == *"gho_"* ]]; }; then
-      if ! git -C "$repo_dir" remote set-url --push origin "$clean_url"; then
-        log "ERROR: Failed to sanitize push URL in $repo_dir"
-        exit 1
-      fi
+    _did_sanitize=true
+  fi
+
+  _push_url=$(git -C "$repo_dir" remote get-url --push origin 2>/dev/null || true)
+  if [ -n "$_push_url" ] && { [[ "$_push_url" == *"@"* ]] || [[ "$_push_url" == *"ghp_"* ]] || [[ "$_push_url" == *"gho_"* ]]; }; then
+    if ! git -C "$repo_dir" remote set-url --push origin "$clean_url"; then
+      log "ERROR: Failed to sanitize push URL in $repo_dir"
+      return 1
     fi
+    _did_sanitize=true
+  fi
+
+  if [ "$_did_sanitize" = true ]; then
     log "Sanitized embedded token from origin URL in $repo_dir"
   fi
 }
 
+# 1. 리포 클론 또는 pull
+GIT_AUTH_HEADER="Authorization: Bearer ${GITHUB_TOKEN}"
 if [ -d "$BACKUP_DIR/.git" ]; then
-  sanitize_origin_url "$BACKUP_DIR" "$BACKUP_REPO_URL"
+  sanitize_origin_url "$BACKUP_DIR" "$BACKUP_REPO_URL" || exit 1
 
   if ! git -C "$BACKUP_DIR" -c "http.extraHeader=$GIT_AUTH_HEADER" fetch origin main >> "$LOGFILE" 2>&1; then
     log "ERROR: git fetch failed — cannot sync"
@@ -165,20 +182,16 @@ if [ -f "$POD_CONF" ]; then
 
   # client_id 추출 및 비교
   REPO_CID=$(extract_rclone_field "$REPO_CONF" "client_id")
-  _repo_cid_exit=$?
-  POD_CID=$(extract_rclone_field "$POD_CONF" "client_id")
-  _pod_cid_exit=$?
-
-  if [ "$_repo_cid_exit" -ne 0 ]; then
+  if [ $? -ne 0 ]; then
     log "ERROR: Failed to parse repo rclone.conf — aborting sync"
     exit 1
   fi
-  if [ "$_pod_cid_exit" -ne 0 ]; then
+  POD_CID=$(extract_rclone_field "$POD_CONF" "client_id")
+  if [ $? -ne 0 ]; then
     log "ERROR: Failed to parse pod rclone.conf — aborting sync"
     exit 1
   fi
 
-  # 빈 client_id = rclone 기본 OAuth 앱 사용. 한쪽만 custom이면 앱이 다른 것이므로 차단
   if [ -z "$REPO_CID" ] && [ -n "$POD_CID" ]; then
     log "WARNING: client_id mismatch — repo uses default OAuth app, pod uses custom '$POD_CID'. Align client_id manually."
     exit 1
@@ -190,23 +203,20 @@ if [ -f "$POD_CONF" ]; then
     exit 1
   fi
 
-  # 토큰 expiry 추출 및 검증
-  REPO_EXPIRY=$(extract_rclone_field "$REPO_CONF" "expiry")
-  _repo_exp_exit=$?
-  POD_EXPIRY=$(extract_rclone_field "$POD_CONF" "expiry")
-  _pod_exp_exit=$?
-
-  if [ "$_repo_exp_exit" -ne 0 ] || [ -z "$REPO_EXPIRY" ]; then
+  # 토큰 expiry 추출 (UTC 정규화 완료)
+  REPO_EXPIRY=$(extract_rclone_field "$REPO_CONF" "expiry_utc")
+  if [ $? -ne 0 ] || [ -z "$REPO_EXPIRY" ]; then
     log "ERROR: Failed to extract valid expiry from repo rclone.conf — aborting sync"
     exit 1
   fi
-  if [ "$_pod_exp_exit" -ne 0 ] || [ -z "$POD_EXPIRY" ]; then
+  POD_EXPIRY=$(extract_rclone_field "$POD_CONF" "expiry_utc")
+  if [ $? -ne 0 ] || [ -z "$POD_EXPIRY" ]; then
     log "ERROR: Failed to extract valid expiry from pod rclone.conf — aborting sync"
     exit 1
   fi
 
-  log "Repo token expiry: $REPO_EXPIRY"
-  log "Pod  token expiry: $POD_EXPIRY"
+  log "Repo token expiry (UTC): $REPO_EXPIRY"
+  log "Pod  token expiry (UTC): $POD_EXPIRY"
 
   if [[ "$POD_EXPIRY" > "$REPO_EXPIRY" ]]; then
     # 포드 토큰이 더 최신 → rclone 동작 검증 후 리포에 push
@@ -228,11 +238,12 @@ if [ -f "$POD_CONF" ]; then
       exit 1
     fi
 
-    # git diff --cached --quiet로 staged 변경 유무를 먼저 확인
-    # commit 실패(hook 거부 등)와 "변경 없음"을 구분하기 위함
-    if git diff --cached --quiet; then
+    # staged 변경 유무를 먼저 확인하여 commit 실패(hook 거부 등)와 구분
+    _diff_exit=0
+    git diff --cached --quiet || _diff_exit=$?
+    if [ "$_diff_exit" -eq 0 ]; then
       log "WARNING: nothing to commit (rclone.conf unchanged in git)"
-    else
+    elif [ "$_diff_exit" -eq 1 ]; then
       if ! git -c user.name="sync_rclone_conf" -c user.email="bot@runpod" commit -m "rclone 토큰 자동 동기화 (포드 → 리포)" >> "$LOGFILE" 2>&1; then
         log "ERROR: git commit failed (hook rejection or other error)"
         exit 1
@@ -242,12 +253,15 @@ if [ -f "$POD_CONF" ]; then
         exit 1
       fi
       log "Pushed updated rclone.conf to repo"
+    else
+      log "ERROR: git diff --cached failed (exit $_diff_exit)"
+      exit 1
     fi
   else
     # 리포 토큰이 더 최신 → 후보 파일에서 검증 후 포드에 적용
     log "Repo token is newer — verifying before applying to pod"
 
-    _candidate=$(mktemp /workspace/.rclone_candidate.XXXXXX)
+    _candidate=$(mktemp /workspace/.rclone_candidate.XXXXXX) || { log "ERROR: mktemp failed"; exit 1; }
     chmod 600 "$_candidate"
     if ! cp "$REPO_CONF" "$_candidate"; then
       rm -f "$_candidate"
@@ -270,15 +284,17 @@ if [ -f "$POD_CONF" ]; then
 
     if ! mv "$_candidate" "$POD_CONF"; then
       log "ERROR: Failed to replace pod rclone.conf — restoring backup"
-      cp "$POD_CONF.bak" "$POD_CONF" 2>/dev/null
+      if ! cp "$POD_CONF.bak" "$POD_CONF"; then
+        log "CRITICAL: Backup restore also failed — pod rclone.conf may be missing"
+      fi
       exit 1
     fi
     chmod 600 "$POD_CONF"
     log "Pod rclone.conf updated from repo (verified)"
   fi
 else
-  # 포드에 rclone.conf가 없으면 리포에서 복사 후 검증
-  _candidate=$(mktemp /workspace/.rclone_candidate.XXXXXX)
+  # 포드에 rclone.conf가 없으면 리포에서 복사 — 검증 실패 시 배치하지 않음
+  _candidate=$(mktemp /workspace/.rclone_candidate.XXXXXX) || { log "ERROR: mktemp failed"; exit 1; }
   chmod 600 "$_candidate"
   if ! cp "$REPO_CONF" "$_candidate"; then
     rm -f "$_candidate"
@@ -287,7 +303,9 @@ else
   fi
 
   if ! rclone about gdrive: --config "$_candidate" > /dev/null 2>&1; then
-    log "WARNING: Repo rclone.conf failed verification — deploying anyway (token may need renewal)"
+    rm -f "$_candidate"
+    log "ERROR: Repo rclone.conf failed verification — not deploying unverified config. Renew token with 'rclone config' manually."
+    exit 1
   fi
 
   if ! mv "$_candidate" "$POD_CONF"; then
@@ -296,7 +314,7 @@ else
     exit 1
   fi
   chmod 600 "$POD_CONF"
-  log "Pod rclone.conf created from repo"
+  log "Pod rclone.conf created from repo (verified)"
 fi
 
 # 3. 최종 연결 테스트 (파일 동기화 완료와 별도로 실제 연결을 확인)

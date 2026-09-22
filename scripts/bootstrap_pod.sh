@@ -14,7 +14,7 @@
 #   8. nginx에 Gradio SSE 블록이 든 설정 배치 후 reload
 #   9. crontab 등록 (auto_clean_kernels, auto_backup_workspace, auto_restore_on_boot,
 #      그리고 @reboot 리스너 기동)
-#   8. auto_restore_on_boot.sh를 즉시 1회 실행 — 재부팅을 기다리지 않고 바로
+#  10. auto_restore_on_boot.sh를 즉시 1회 실행 — 재부팅을 기다리지 않고 바로
 #      LoRA/체크포인트/dynamic_prompts를 gdrive에서 복원 시작
 #
 # 즉, "포드 생성 → 이 스크립트 실행" 두 단계만으로 예전에 사람이 수십 분~수 시간 걸려
@@ -41,10 +41,15 @@ REPO_URL="https://github.com/castle923/AutoRunpod.git"
 CLONE_DIR="/workspace/_bootstrap_autorunpod"
 FORGE_ROOT="/workspace/stable-diffusion-webui-forge"
 LOGDIR="/workspace/logs"
+_warnings=0
 mkdir -p "$LOGDIR"
 
 log() {
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $1" | tee -a "$LOGDIR/bootstrap.log"
+}
+warn() {
+  _warnings=$((_warnings + 1))
+  log "WARNING: $1"
 }
 
 log "=== bootstrap_pod.sh started ==="
@@ -59,30 +64,58 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
   GIT_AUTH=(-c "http.extraHeader=Authorization: Bearer ${GITHUB_TOKEN}")
 fi
 
+# fetch URL과 push URL을 독립적으로 검사하여 내장 인증정보를 제거
 sanitize_origin_url() {
   local repo_dir="$1"
   local clean_url="$2"
-  local _url
+  local _url _push_url _did_sanitize=false _ok=true
+
   _url=$(git -C "$repo_dir" remote get-url origin 2>/dev/null || true)
   if [[ "$_url" == *"@"* ]] || [[ "$_url" == *"ghp_"* ]] || [[ "$_url" == *"gho_"* ]]; then
-    if ! git -C "$repo_dir" remote set-url origin "$clean_url"; then
-      log "WARNING: Failed to sanitize origin URL in $repo_dir"
+    if git -C "$repo_dir" remote set-url origin "$clean_url" 2>/dev/null; then
+      _did_sanitize=true
+    else
+      warn "Failed to sanitize fetch URL in $repo_dir"
+      _ok=false
     fi
-    local _push_url
-    _push_url=$(git -C "$repo_dir" remote get-url --push origin 2>/dev/null || true)
-    if [ -n "$_push_url" ] && { [[ "$_push_url" == *"@"* ]] || [[ "$_push_url" == *"ghp_"* ]] || [[ "$_push_url" == *"gho_"* ]]; }; then
-      git -C "$repo_dir" remote set-url --push origin "$clean_url" 2>/dev/null
+  fi
+
+  _push_url=$(git -C "$repo_dir" remote get-url --push origin 2>/dev/null || true)
+  if [ -n "$_push_url" ] && { [[ "$_push_url" == *"@"* ]] || [[ "$_push_url" == *"ghp_"* ]] || [[ "$_push_url" == *"gho_"* ]]; }; then
+    if git -C "$repo_dir" remote set-url --push origin "$clean_url" 2>/dev/null; then
+      _did_sanitize=true
+    else
+      warn "Failed to sanitize push URL in $repo_dir"
+      _ok=false
     fi
+  fi
+
+  if [ "$_did_sanitize" = true ] && [ "$_ok" = true ]; then
     log "Sanitized embedded token from origin URL in $repo_dir"
   fi
+}
+
+# pull 후 작업 트리 상태를 검증 — merge 충돌이 남아 있으면 안전하지 않다
+safe_pull() {
+  local repo_dir="$1"
+  shift
+  if ! git "$@" -C "$repo_dir" pull >> "$LOGDIR/bootstrap.log" 2>&1; then
+    # pull 실패 시 merge 충돌/더러운 작업 트리 확인
+    if [ -f "$repo_dir/.git/MERGE_HEAD" ]; then
+      git -C "$repo_dir" merge --abort 2>/dev/null
+      warn "git pull caused merge conflict in $repo_dir — aborted merge, using previous state"
+    else
+      warn "git pull failed for $repo_dir — using existing clone"
+    fi
+    return 1
+  fi
+  return 0
 }
 
 if [ -d "$CLONE_DIR/.git" ]; then
   sanitize_origin_url "$CLONE_DIR" "$REPO_URL"
   log "repo already cloned — pulling latest"
-  if ! git "${GIT_AUTH[@]}" -C "$CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1; then
-    log "WARNING: git pull failed for AutoRunpod — using existing clone"
-  fi
+  safe_pull "$CLONE_DIR" "${GIT_AUTH[@]}"
 else
   log "cloning $REPO_URL"
   if ! git "${GIT_AUTH[@]}" clone --depth 1 "$REPO_URL" "$CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1; then
@@ -102,49 +135,52 @@ BACKUP_REPO_URL="https://github.com/castle923/Runpod-Backup.git"
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   if [ -d "$BACKUP_CLONE_DIR/.git" ]; then
     sanitize_origin_url "$BACKUP_CLONE_DIR" "$BACKUP_REPO_URL"
-    if ! git "${GIT_AUTH[@]}" -C "$BACKUP_CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1; then
-      log "WARNING: git pull failed for Runpod-Backup — using existing clone"
-    fi
+    safe_pull "$BACKUP_CLONE_DIR" "${GIT_AUTH[@]}"
   else
     if ! git "${GIT_AUTH[@]}" clone --depth 1 "$BACKUP_REPO_URL" "$BACKUP_CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1; then
-      log "WARNING: Runpod-Backup clone failed — rclone.conf must be configured manually"
+      warn "Runpod-Backup clone failed — rclone.conf must be configured manually"
     fi
   fi
   if [ -f "$BACKUP_CLONE_DIR/secrets/rclone.conf" ]; then
     mkdir -p /root/.config/rclone /workspace/rclone_backup_config
-    cp "$BACKUP_CLONE_DIR/secrets/rclone.conf" /root/.config/rclone/rclone.conf
-    cp "$BACKUP_CLONE_DIR/secrets/rclone.conf" /workspace/rclone_backup_config/rclone.conf
-    log "rclone.conf restored from Runpod-Backup(secrets/rclone.conf) automatically"
+    if cp "$BACKUP_CLONE_DIR/secrets/rclone.conf" /root/.config/rclone/rclone.conf && \
+       cp "$BACKUP_CLONE_DIR/secrets/rclone.conf" /workspace/rclone_backup_config/rclone.conf; then
+      log "rclone.conf restored from Runpod-Backup(secrets/rclone.conf) automatically"
+    else
+      warn "rclone.conf copy failed — check disk space and permissions"
+    fi
   else
-    log "WARNING: Runpod-Backup clone succeeded but secrets/rclone.conf not found — rclone must be configured manually"
+    warn "Runpod-Backup clone succeeded but secrets/rclone.conf not found — rclone must be configured manually"
   fi
 else
-  log "WARNING: GITHUB_TOKEN not set — cannot fetch rclone.conf from private Runpod-Backup repo. Run 'rclone config' manually, or re-run with GITHUB_TOKEN set."
+  warn "GITHUB_TOKEN not set — cannot fetch rclone.conf from private Runpod-Backup repo. Run 'rclone config' manually, or re-run with GITHUB_TOKEN set."
 fi
 
 # 3-2. GITHUB_TOKEN을 /workspace/.env에 저장 (cron에서 사용)
 #      기존 .env가 있으면 GITHUB_TOKEN 행만 교체하고 나머지는 보존
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   ENV_FILE="/workspace/.env"
-  _env_tmpfile=$(mktemp /workspace/.env.XXXXXX)
-  chmod 600 "$_env_tmpfile"
-  _env_ok=true
-  if [ -f "$ENV_FILE" ]; then
-    _gv_exit=0
-    grep -v '^GITHUB_TOKEN=' "$ENV_FILE" > "$_env_tmpfile" || _gv_exit=$?
-    if [ "$_gv_exit" -ge 2 ]; then
-      log "ERROR: Failed to read existing $ENV_FILE (grep exit $_gv_exit)"
-      rm -f "$_env_tmpfile"
-      _env_ok=false
+  _env_tmpfile=$(mktemp /workspace/.env.XXXXXX) || { warn "mktemp failed for .env"; _env_tmpfile=""; }
+  if [ -n "$_env_tmpfile" ]; then
+    chmod 600 "$_env_tmpfile"
+    _env_ok=true
+    if [ -f "$ENV_FILE" ]; then
+      _gv_exit=0
+      grep -v '^GITHUB_TOKEN=' "$ENV_FILE" > "$_env_tmpfile" || _gv_exit=$?
+      if [ "$_gv_exit" -ge 2 ]; then
+        warn "Failed to read existing $ENV_FILE (grep exit $_gv_exit)"
+        rm -f "$_env_tmpfile"
+        _env_ok=false
+      fi
     fi
-  fi
-  if [ "$_env_ok" = true ]; then
-    if echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> "$_env_tmpfile" && mv "$_env_tmpfile" "$ENV_FILE"; then
-      chmod 600 "$ENV_FILE"
-      log "GITHUB_TOKEN saved to /workspace/.env for cron scripts"
-    else
-      log "ERROR: Failed to write $ENV_FILE"
-      rm -f "$_env_tmpfile"
+    if [ "$_env_ok" = true ]; then
+      if echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> "$_env_tmpfile" && mv "$_env_tmpfile" "$ENV_FILE"; then
+        chmod 600 "$ENV_FILE"
+        log "GITHUB_TOKEN saved to /workspace/.env for cron scripts"
+      else
+        warn "Failed to write $ENV_FILE — cron scripts may lack GITHUB_TOKEN"
+        rm -f "$_env_tmpfile"
+      fi
     fi
   fi
 fi
@@ -169,8 +205,7 @@ else
   log "RUNPOD_POD_ID not set or submit_job.py missing — pod URL in submit_job.py must be fixed manually"
 fi
 
-# 6-2. 리스너 서버 배치 (감시·자동복구·업로드 API). 이게 없으면 Forge가 죽어도
-#      아무도 되살리지 않는다.
+# 6-2. 리스너 서버 배치 (감시·자동복구·업로드 API)
 mkdir -p /workspace/listener
 cp "$CLONE_DIR"/listener/server.py /workspace/listener/server.py 2>/dev/null
 cp "$CLONE_DIR"/listener/start.sh  /workspace/listener/start.sh 2>/dev/null
@@ -179,10 +214,7 @@ cp "$CLONE_DIR"/scripts/restart_forge_clean.sh /workspace/restart_forge_clean.sh
 chmod +x /workspace/restart_forge_clean.sh 2>/dev/null
 log "listener + restart_forge_clean.sh deployed"
 
-# 6-3. nginx 설정 배치.
-#      기본 설정은 Gradio 4.x 의 SSE 스트림(/queue/data)을 버퍼링해서, 생성은
-#      끝났는데 브라우저에 결과가 도착하지 않는 상태를 만들 수 있다.
-#      /etc/nginx 는 /workspace 밖이라 컨테이너가 바뀌면 사라지므로 매번 배치한다.
+# 6-3. nginx 설정 배치
 if [ -f "$CLONE_DIR/config/nginx.conf" ]; then
   cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig 2>/dev/null
   cp "$CLONE_DIR/config/nginx.conf" /etc/nginx/nginx.conf
@@ -191,16 +223,18 @@ if [ -f "$CLONE_DIR/config/nginx.conf" ]; then
     log "nginx.conf deployed and reloaded"
   else
     cp /etc/nginx/nginx.conf.orig /etc/nginx/nginx.conf 2>/dev/null
-    log "WARNING: nginx.conf 검증 실패 — 원본으로 되돌림"
+    warn "nginx.conf 검증 실패 — 원본으로 되돌림"
   fi
 fi
 
-# 6-4. rclone.conf 를 /workspace 안에도 둔다. 스크립트들이 --config 로 이 경로를
-#      쓰고, /root/.config 는 컨테이너가 바뀌면 사라지기 때문이다.
+# 6-4. rclone.conf를 /workspace 안에도 둔다
 if [ -f /root/.config/rclone/rclone.conf ]; then
-  cp /root/.config/rclone/rclone.conf /workspace/rclone.conf
-  chmod 600 /workspace/rclone.conf
-  log "rclone.conf mirrored to /workspace (스크립트들이 참조하는 경로)"
+  if cp /root/.config/rclone/rclone.conf /workspace/rclone.conf; then
+    chmod 600 /workspace/rclone.conf
+    log "rclone.conf mirrored to /workspace"
+  else
+    warn "rclone.conf mirror to /workspace failed"
+  fi
 fi
 
 # 7. crontab 등록 (중복 없이)
@@ -243,13 +277,25 @@ if [ -x /workspace/listener/start.sh ]; then
   if curl -sS --max-time 5 http://localhost:5000/health >/dev/null 2>&1; then
     log "listener started and responding on :5000"
   else
-    log "WARNING: listener 기동 확인 실패 — 'bash /workspace/listener/start.sh' 로 수동 확인 필요"
+    warn "listener 기동 확인 실패 — 'bash /workspace/listener/start.sh' 로 수동 확인 필요"
   fi
 fi
 
+# 10. 최종 상태 보고 — 경고 횟수에 따라 완료/부분완료 구분
 log "=== bootstrap_pod.sh finished ==="
-if rclone lsd gdrive: > /dev/null 2>&1; then
-  log "rclone gdrive 연결 확인됨 — 모든 단계 완료."
+if [ "$_warnings" -gt 0 ]; then
+  log "부분 완료: $_warnings 개 경고 발생 — 위 로그에서 WARNING 항목을 확인하세요."
+  if rclone lsd gdrive: > /dev/null 2>&1; then
+    log "rclone gdrive 연결은 확인됨."
+  else
+    log "다음 단계: rclone이 아직 인증되지 않았습니다. GITHUB_TOKEN을 설정하고 재실행하거나, 'rclone config'로 gdrive를 수동 인증하세요."
+  fi
+  exit 1
 else
-  log "다음 단계: rclone이 아직 인증되지 않았습니다. GITHUB_TOKEN을 설정하고 재실행하거나, 'rclone config'로 gdrive를 수동 인증하세요 (BACKUP_AND_RESTORE.md 참고)."
+  if rclone lsd gdrive: > /dev/null 2>&1; then
+    log "rclone gdrive 연결 확인됨 — 모든 단계 완료."
+  else
+    log "다음 단계: rclone이 아직 인증되지 않았습니다. GITHUB_TOKEN을 설정하고 재실행하거나, 'rclone config'로 gdrive를 수동 인증하세요 (BACKUP_AND_RESTORE.md 참고)."
+    exit 1
+  fi
 fi
