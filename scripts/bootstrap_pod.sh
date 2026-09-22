@@ -59,22 +59,40 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
   GIT_AUTH=(-c "http.extraHeader=Authorization: Bearer ${GITHUB_TOKEN}")
 fi
 
-if [ -d "$CLONE_DIR/.git" ]; then
-  # 기존 클론의 origin URL에 토큰이 박혀 있으면 안전한 URL로 교체
-  _current_url=$(git -C "$CLONE_DIR" remote get-url origin 2>/dev/null || true)
-  if [[ "$_current_url" == *"@"* ]] || [[ "$_current_url" == *"ghp_"* ]] || [[ "$_current_url" == *"gho_"* ]]; then
-    git -C "$CLONE_DIR" remote set-url origin "$REPO_URL"
-    log "Sanitized embedded token from AutoRunpod clone origin URL"
+sanitize_origin_url() {
+  local repo_dir="$1"
+  local clean_url="$2"
+  local _url
+  _url=$(git -C "$repo_dir" remote get-url origin 2>/dev/null || true)
+  if [[ "$_url" == *"@"* ]] || [[ "$_url" == *"ghp_"* ]] || [[ "$_url" == *"gho_"* ]]; then
+    if ! git -C "$repo_dir" remote set-url origin "$clean_url"; then
+      log "WARNING: Failed to sanitize origin URL in $repo_dir"
+    fi
+    local _push_url
+    _push_url=$(git -C "$repo_dir" remote get-url --push origin 2>/dev/null || true)
+    if [ -n "$_push_url" ] && { [[ "$_push_url" == *"@"* ]] || [[ "$_push_url" == *"ghp_"* ]] || [[ "$_push_url" == *"gho_"* ]]; }; then
+      git -C "$repo_dir" remote set-url --push origin "$clean_url" 2>/dev/null
+    fi
+    log "Sanitized embedded token from origin URL in $repo_dir"
   fi
+}
+
+if [ -d "$CLONE_DIR/.git" ]; then
+  sanitize_origin_url "$CLONE_DIR" "$REPO_URL"
   log "repo already cloned — pulling latest"
-  git "${GIT_AUTH[@]}" -C "$CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1
+  if ! git "${GIT_AUTH[@]}" -C "$CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1; then
+    log "WARNING: git pull failed for AutoRunpod — using existing clone"
+  fi
 else
   log "cloning $REPO_URL"
-  git "${GIT_AUTH[@]}" clone --depth 1 "$REPO_URL" "$CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1
+  if ! git "${GIT_AUTH[@]}" clone --depth 1 "$REPO_URL" "$CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1; then
+    log "ERROR: clone failed, aborting bootstrap."
+    exit 1
+  fi
 fi
 
 if [ ! -d "$CLONE_DIR" ]; then
-  log "ERROR: clone failed, aborting bootstrap."
+  log "ERROR: clone directory missing, aborting bootstrap."
   exit 1
 fi
 
@@ -83,15 +101,14 @@ BACKUP_CLONE_DIR="/workspace/_bootstrap_runpod_backup"
 BACKUP_REPO_URL="https://github.com/castle923/Runpod-Backup.git"
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   if [ -d "$BACKUP_CLONE_DIR/.git" ]; then
-    # 기존 클론의 origin URL에 토큰이 박혀 있으면 안전한 URL로 교체
-    _backup_url=$(git -C "$BACKUP_CLONE_DIR" remote get-url origin 2>/dev/null || true)
-    if [[ "$_backup_url" == *"@"* ]] || [[ "$_backup_url" == *"ghp_"* ]] || [[ "$_backup_url" == *"gho_"* ]]; then
-      git -C "$BACKUP_CLONE_DIR" remote set-url origin "$BACKUP_REPO_URL"
-      log "Sanitized embedded token from Runpod-Backup clone origin URL"
+    sanitize_origin_url "$BACKUP_CLONE_DIR" "$BACKUP_REPO_URL"
+    if ! git "${GIT_AUTH[@]}" -C "$BACKUP_CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1; then
+      log "WARNING: git pull failed for Runpod-Backup — using existing clone"
     fi
-    git "${GIT_AUTH[@]}" -C "$BACKUP_CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1
   else
-    git "${GIT_AUTH[@]}" clone --depth 1 "$BACKUP_REPO_URL" "$BACKUP_CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1
+    if ! git "${GIT_AUTH[@]}" clone --depth 1 "$BACKUP_REPO_URL" "$BACKUP_CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1; then
+      log "WARNING: Runpod-Backup clone failed — rclone.conf must be configured manually"
+    fi
   fi
   if [ -f "$BACKUP_CLONE_DIR/secrets/rclone.conf" ]; then
     mkdir -p /root/.config/rclone /workspace/rclone_backup_config
@@ -109,18 +126,27 @@ fi
 #      기존 .env가 있으면 GITHUB_TOKEN 행만 교체하고 나머지는 보존
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   ENV_FILE="/workspace/.env"
-  (
-    umask 077
-    if [ -f "$ENV_FILE" ]; then
-      grep -v '^GITHUB_TOKEN=' "$ENV_FILE" > "$ENV_FILE.tmp" || true
-      echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> "$ENV_FILE.tmp"
-      mv "$ENV_FILE.tmp" "$ENV_FILE"
-    else
-      echo "GITHUB_TOKEN=${GITHUB_TOKEN}" > "$ENV_FILE"
+  _env_tmpfile=$(mktemp /workspace/.env.XXXXXX)
+  chmod 600 "$_env_tmpfile"
+  _env_ok=true
+  if [ -f "$ENV_FILE" ]; then
+    _gv_exit=0
+    grep -v '^GITHUB_TOKEN=' "$ENV_FILE" > "$_env_tmpfile" || _gv_exit=$?
+    if [ "$_gv_exit" -ge 2 ]; then
+      log "ERROR: Failed to read existing $ENV_FILE (grep exit $_gv_exit)"
+      rm -f "$_env_tmpfile"
+      _env_ok=false
     fi
-  )
-  chmod 600 "$ENV_FILE"
-  log "GITHUB_TOKEN saved to /workspace/.env for cron scripts"
+  fi
+  if [ "$_env_ok" = true ]; then
+    if echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> "$_env_tmpfile" && mv "$_env_tmpfile" "$ENV_FILE"; then
+      chmod 600 "$ENV_FILE"
+      log "GITHUB_TOKEN saved to /workspace/.env for cron scripts"
+    else
+      log "ERROR: Failed to write $ENV_FILE"
+      rm -f "$_env_tmpfile"
+    fi
+  fi
 fi
 
 # 4. config.json / ui-config.json 배치
