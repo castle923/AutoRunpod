@@ -53,18 +53,18 @@ log "=== bootstrap_pod.sh started ==="
 git config --global http.version HTTP/1.1
 
 # 2. 저장소 클론 (이미 있으면 최신으로 pull)
+#    토큰은 http.extraHeader로 전달하여 .git/config에 남기지 않음
+GIT_AUTH=()
 if [ -n "${GITHUB_TOKEN:-}" ]; then
-  CLONE_URL="https://${GITHUB_TOKEN}@github.com/castle923/AutoRunpod.git"
-else
-  CLONE_URL="$REPO_URL"
+  GIT_AUTH=(-c "http.extraHeader=Authorization: Bearer ${GITHUB_TOKEN}")
 fi
 
 if [ -d "$CLONE_DIR/.git" ]; then
   log "repo already cloned — pulling latest"
-  git -C "$CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1
+  git "${GIT_AUTH[@]}" -C "$CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1
 else
   log "cloning $REPO_URL"
-  git clone --depth 1 "$CLONE_URL" "$CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1
+  git "${GIT_AUTH[@]}" clone --depth 1 "$REPO_URL" "$CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1
 fi
 
 if [ ! -d "$CLONE_DIR" ]; then
@@ -74,12 +74,12 @@ fi
 
 # 3. rclone gdrive 인증 정보 자동 배치 (Runpod-Backup 비공개 저장소에서 가져옴)
 BACKUP_CLONE_DIR="/workspace/_bootstrap_runpod_backup"
+BACKUP_REPO_URL="https://github.com/castle923/Runpod-Backup.git"
 if [ -n "${GITHUB_TOKEN:-}" ]; then
-  BACKUP_CLONE_URL="https://${GITHUB_TOKEN}@github.com/castle923/Runpod-Backup.git"
   if [ -d "$BACKUP_CLONE_DIR/.git" ]; then
-    git -C "$BACKUP_CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1
+    git "${GIT_AUTH[@]}" -C "$BACKUP_CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1
   else
-    git clone --depth 1 "$BACKUP_CLONE_URL" "$BACKUP_CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1
+    git "${GIT_AUTH[@]}" clone --depth 1 "$BACKUP_REPO_URL" "$BACKUP_CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1
   fi
   if [ -f "$BACKUP_CLONE_DIR/secrets/rclone.conf" ]; then
     mkdir -p /root/.config/rclone /workspace/rclone_backup_config
@@ -94,9 +94,17 @@ else
 fi
 
 # 3-2. GITHUB_TOKEN을 /workspace/.env에 저장 (cron에서 사용)
+#      기존 .env가 있으면 GITHUB_TOKEN 행만 교체하고 나머지는 보존
 if [ -n "${GITHUB_TOKEN:-}" ]; then
-  echo "GITHUB_TOKEN=${GITHUB_TOKEN}" > /workspace/.env
-  chmod 600 /workspace/.env
+  ENV_FILE="/workspace/.env"
+  if [ -f "$ENV_FILE" ]; then
+    grep -v '^GITHUB_TOKEN=' "$ENV_FILE" > "$ENV_FILE.tmp" || true
+    echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> "$ENV_FILE.tmp"
+    mv "$ENV_FILE.tmp" "$ENV_FILE"
+  else
+    echo "GITHUB_TOKEN=${GITHUB_TOKEN}" > "$ENV_FILE"
+  fi
+  chmod 600 "$ENV_FILE"
   log "GITHUB_TOKEN saved to /workspace/.env for cron scripts"
 fi
 
@@ -172,8 +180,8 @@ CRON_ENTRIES=(
 current_cron=$(crontab -l 2>/dev/null || true)
 new_cron="$current_cron"
 for entry in "${CRON_ENTRIES[@]}"; do
-  script_name=$(echo "$entry" | grep -oE '/workspace/scripts/[a-zA-Z_]+\.(sh|py)')
-  if ! echo "$current_cron" | grep -qF "$script_name"; then
+  script_path=$(echo "$entry" | grep -oE '/workspace/[a-zA-Z_/]+\.(sh|py)')
+  if [ -z "$script_path" ] || ! echo "$current_cron" | grep -qF "$script_path"; then
     new_cron="$new_cron
 $entry"
   fi

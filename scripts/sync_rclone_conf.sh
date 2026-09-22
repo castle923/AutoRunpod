@@ -26,7 +26,7 @@ log() {
 
 # cron 실행 시 환경변수가 없으므로 /workspace/.env 에서 로드
 if [ -z "${GITHUB_TOKEN:-}" ] && [ -f /workspace/.env ]; then
-  eval "$(grep -E '^GITHUB_TOKEN=' /workspace/.env)"
+  GITHUB_TOKEN=$(grep -m1 '^GITHUB_TOKEN=' /workspace/.env | cut -d= -f2-)
   export GITHUB_TOKEN
 fi
 
@@ -35,14 +35,15 @@ if [ -z "${GITHUB_TOKEN:-}" ]; then
   exit 1
 fi
 
-BACKUP_CLONE_URL="https://${GITHUB_TOKEN}@github.com/castle923/Runpod-Backup.git"
+BACKUP_REPO_URL="https://github.com/castle923/Runpod-Backup.git"
 
-# 1. 리포 클론 또는 pull
+# 1. 리포 클론 또는 pull (토큰은 헤더로 전달, .git/config에 남기지 않음)
+GIT_AUTH_HEADER="Authorization: Bearer ${GITHUB_TOKEN}"
 if [ -d "$BACKUP_DIR/.git" ]; then
-  git -C "$BACKUP_DIR" fetch origin main >> "$LOGFILE" 2>&1
+  git -C "$BACKUP_DIR" -c "http.extraHeader=$GIT_AUTH_HEADER" fetch origin main >> "$LOGFILE" 2>&1
   git -C "$BACKUP_DIR" reset --hard origin/main >> "$LOGFILE" 2>&1
 else
-  git clone --depth 1 "$BACKUP_CLONE_URL" "$BACKUP_DIR" >> "$LOGFILE" 2>&1
+  git -c "http.extraHeader=$GIT_AUTH_HEADER" clone --depth 1 "$BACKUP_REPO_URL" "$BACKUP_DIR" >> "$LOGFILE" 2>&1
 fi
 
 if [ ! -f "$REPO_CONF" ]; then
@@ -90,9 +91,16 @@ for s in c.sections():
     cp "$POD_CONF" "$REPO_CONF"
     cd "$BACKUP_DIR"
     git add secrets/rclone.conf
-    git -c user.name="sync_rclone_conf" -c user.email="bot@runpod" commit -m "rclone 토큰 자동 동기화 (포드 → 리포)" >> "$LOGFILE" 2>&1
-    git push origin main >> "$LOGFILE" 2>&1
-    log "Pushed updated rclone.conf to repo"
+    if git -c user.name="sync_rclone_conf" -c user.email="bot@runpod" commit -m "rclone 토큰 자동 동기화 (포드 → 리포)" >> "$LOGFILE" 2>&1; then
+      if git -c "http.extraHeader=$GIT_AUTH_HEADER" push origin main >> "$LOGFILE" 2>&1; then
+        log "Pushed updated rclone.conf to repo"
+      else
+        log "ERROR: git push failed — repo may be out of sync"
+        exit 1
+      fi
+    else
+      log "WARNING: nothing to commit (rclone.conf unchanged in git)"
+    fi
   else
     # 리포 토큰이 더 최신 → 포드에 적용
     log "Repo token is newer — updating pod"
@@ -110,5 +118,6 @@ fi
 if rclone about gdrive: --config "$POD_CONF" > /dev/null 2>&1; then
   log "rclone gdrive connection OK"
 else
-  log "WARNING: rclone gdrive connection failed — token may need manual renewal"
+  log "ERROR: rclone gdrive connection failed — token may need manual renewal"
+  exit 1
 fi
