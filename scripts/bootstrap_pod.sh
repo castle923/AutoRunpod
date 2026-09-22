@@ -93,6 +93,13 @@ else
   log "WARNING: GITHUB_TOKEN not set — cannot fetch rclone.conf from private Runpod-Backup repo. Run 'rclone config' manually, or re-run with GITHUB_TOKEN set."
 fi
 
+# 3-2. GITHUB_TOKEN을 /workspace/.env에 저장 (cron에서 사용)
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+  echo "GITHUB_TOKEN=${GITHUB_TOKEN}" > /workspace/.env
+  chmod 600 /workspace/.env
+  log "GITHUB_TOKEN saved to /workspace/.env for cron scripts"
+fi
+
 # 4. config.json / ui-config.json 배치
 mkdir -p "$FORGE_ROOT"
 [ -f "$CLONE_DIR/config.json" ] && cp "$CLONE_DIR/config.json" "$FORGE_ROOT/config.json" && log "config.json deployed"

@@ -42,11 +42,12 @@
 | 주기 | 스크립트 | 설명 |
 |---|---|---|
 | */5 min | `auto_clean_kernels.py` | Jupyter 커널 정리 |
-| */10 min | `preventive_restart.py` | 메모리 초과 시 Forge 재시작 |
-| @reboot | `watchdog.sh` | Forge 프로세스 감시 |
 | @reboot | `auto_restore_on_boot.sh` | LoRA/체크포인트 gdrive 복원 |
+| @reboot | `listener/start.sh` | 리스너 서버 기동 (Forge 감시·재시작·메모리 관리 통합) |
 | */30 min | `auto_backup_workspace.sh` | workspace 스냅샷 백업 |
 | */6 hr | `sync_rclone_conf.sh` | rclone.conf 리포↔포드 동기화 |
+
+> **참고**: `watchdog.sh`와 `preventive_restart.py`는 리스너 서버와 역할이 중복되어 crontab에서 제외됨. 리스너가 5초 간격으로 Forge를 감시하고, 메모리 80% 경고 / 90%+ 유휴 시 재시작을 통합 관리함.
 
 ## 파일 구조
 

@@ -24,8 +24,14 @@ log() {
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $1" | tee -a "$LOGFILE"
 }
 
+# cron 실행 시 환경변수가 없으므로 /workspace/.env 에서 로드
+if [ -z "${GITHUB_TOKEN:-}" ] && [ -f /workspace/.env ]; then
+  eval "$(grep -E '^GITHUB_TOKEN=' /workspace/.env)"
+  export GITHUB_TOKEN
+fi
+
 if [ -z "${GITHUB_TOKEN:-}" ]; then
-  log "ERROR: GITHUB_TOKEN not set — cannot sync rclone.conf"
+  log "ERROR: GITHUB_TOKEN not set — cannot sync rclone.conf (set via env or /workspace/.env)"
   exit 1
 fi
 
