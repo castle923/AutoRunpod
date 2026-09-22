@@ -60,6 +60,12 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
 fi
 
 if [ -d "$CLONE_DIR/.git" ]; then
+  # 기존 클론의 origin URL에 토큰이 박혀 있으면 안전한 URL로 교체
+  _current_url=$(git -C "$CLONE_DIR" remote get-url origin 2>/dev/null || true)
+  if [[ "$_current_url" == *"@"* ]] || [[ "$_current_url" == *"ghp_"* ]] || [[ "$_current_url" == *"gho_"* ]]; then
+    git -C "$CLONE_DIR" remote set-url origin "$REPO_URL"
+    log "Sanitized embedded token from AutoRunpod clone origin URL"
+  fi
   log "repo already cloned — pulling latest"
   git "${GIT_AUTH[@]}" -C "$CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1
 else
@@ -77,6 +83,12 @@ BACKUP_CLONE_DIR="/workspace/_bootstrap_runpod_backup"
 BACKUP_REPO_URL="https://github.com/castle923/Runpod-Backup.git"
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   if [ -d "$BACKUP_CLONE_DIR/.git" ]; then
+    # 기존 클론의 origin URL에 토큰이 박혀 있으면 안전한 URL로 교체
+    _backup_url=$(git -C "$BACKUP_CLONE_DIR" remote get-url origin 2>/dev/null || true)
+    if [[ "$_backup_url" == *"@"* ]] || [[ "$_backup_url" == *"ghp_"* ]] || [[ "$_backup_url" == *"gho_"* ]]; then
+      git -C "$BACKUP_CLONE_DIR" remote set-url origin "$BACKUP_REPO_URL"
+      log "Sanitized embedded token from Runpod-Backup clone origin URL"
+    fi
     git "${GIT_AUTH[@]}" -C "$BACKUP_CLONE_DIR" pull >> "$LOGDIR/bootstrap.log" 2>&1
   else
     git "${GIT_AUTH[@]}" clone --depth 1 "$BACKUP_REPO_URL" "$BACKUP_CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1
@@ -97,13 +109,16 @@ fi
 #      기존 .env가 있으면 GITHUB_TOKEN 행만 교체하고 나머지는 보존
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   ENV_FILE="/workspace/.env"
-  if [ -f "$ENV_FILE" ]; then
-    grep -v '^GITHUB_TOKEN=' "$ENV_FILE" > "$ENV_FILE.tmp" || true
-    echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> "$ENV_FILE.tmp"
-    mv "$ENV_FILE.tmp" "$ENV_FILE"
-  else
-    echo "GITHUB_TOKEN=${GITHUB_TOKEN}" > "$ENV_FILE"
-  fi
+  (
+    umask 077
+    if [ -f "$ENV_FILE" ]; then
+      grep -v '^GITHUB_TOKEN=' "$ENV_FILE" > "$ENV_FILE.tmp" || true
+      echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> "$ENV_FILE.tmp"
+      mv "$ENV_FILE.tmp" "$ENV_FILE"
+    else
+      echo "GITHUB_TOKEN=${GITHUB_TOKEN}" > "$ENV_FILE"
+    fi
+  )
   chmod 600 "$ENV_FILE"
   log "GITHUB_TOKEN saved to /workspace/.env for cron scripts"
 fi
@@ -187,7 +202,7 @@ $entry"
   fi
 done
 echo "$new_cron" | crontab -
-log "crontab synced (4 automation entries ensured)"
+log "crontab synced (5 automation entries ensured)"
 
 # 8. auto_restore_on_boot.sh 즉시 1회 실행 (재부팅을 기다리지 않고 바로 복원 시작)
 if [ -f /workspace/scripts/auto_restore_on_boot.sh ]; then
