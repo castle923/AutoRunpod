@@ -66,7 +66,7 @@ extract_rclone_field() {
   local conf_path="$1"
   local field="$2"
   python3 -c "
-import configparser, json, sys
+import configparser, json, re, sys
 from datetime import datetime, timezone
 
 c = configparser.ConfigParser()
@@ -99,6 +99,8 @@ elif '${field}' == 'expiry_utc':
     if not exp:
         print('NO_EXPIRY: expiry not in token', file=sys.stderr)
         sys.exit(2)
+    # rclone produces up to 9 fractional digits; Python %f handles only 6
+    exp = re.sub(r'(\.\d{6})\d+', r'\1', exp)
     # ISO 8601 파싱 — timezone offset 포함/미포함 모두 처리
     for fmt in ('%Y-%m-%dT%H:%M:%S.%f%z', '%Y-%m-%dT%H:%M:%S%z',
                 '%Y-%m-%dT%H:%M:%S.%fZ', '%Y-%m-%dT%H:%M:%SZ',
@@ -107,7 +109,7 @@ elif '${field}' == 'expiry_utc':
             dt = datetime.strptime(exp.replace('Z', '+00:00') if fmt.endswith('Z') else exp, fmt)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
-            print(dt.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+            print(dt.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f'))
             sys.exit(0)
         except ValueError:
             continue

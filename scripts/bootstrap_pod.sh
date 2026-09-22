@@ -95,17 +95,28 @@ sanitize_origin_url() {
   fi
 }
 
-# pull 후 작업 트리 상태를 검증 — merge 충돌이 남아 있으면 안전하지 않다
+# pull 후 작업 트리 상태를 검증 — 복구 실패 시 2를 반환하여 호출자가 배치를 건너뛰게 한다
+# 반환값: 0=성공, 1=실패했지만 작업트리 안전, 2=작업트리 손상(배치 불가)
 safe_pull() {
   local repo_dir="$1"
   shift
   if ! git "$@" -C "$repo_dir" pull >> "$LOGDIR/bootstrap.log" 2>&1; then
-    # pull 실패 시 merge 충돌/더러운 작업 트리 확인
     if [ -f "$repo_dir/.git/MERGE_HEAD" ]; then
-      git -C "$repo_dir" merge --abort 2>/dev/null
+      if ! git -C "$repo_dir" merge --abort >> "$LOGDIR/bootstrap.log" 2>&1; then
+        warn "git merge --abort failed in $repo_dir — worktree may be corrupted"
+        return 2
+      fi
       warn "git pull caused merge conflict in $repo_dir — aborted merge, using previous state"
+    elif [ -f "$repo_dir/.git/rebase-merge/interactive" ] || [ -d "$repo_dir/.git/rebase-apply" ]; then
+      warn "git pull left rebase state in $repo_dir — worktree corrupted"
+      return 2
     else
       warn "git pull failed for $repo_dir — using existing clone"
+    fi
+    # 복구 후 작업 트리가 깨끗한지 최종 확인
+    if [ -n "$(git -C "$repo_dir" status --porcelain 2>/dev/null)" ]; then
+      warn "worktree still dirty after recovery in $repo_dir — files may be inconsistent"
+      return 2
     fi
     return 1
   fi
@@ -115,7 +126,12 @@ safe_pull() {
 if [ -d "$CLONE_DIR/.git" ]; then
   sanitize_origin_url "$CLONE_DIR" "$REPO_URL"
   log "repo already cloned — pulling latest"
-  safe_pull "$CLONE_DIR" "${GIT_AUTH[@]}"
+  _pull_rc=0
+  safe_pull "$CLONE_DIR" "${GIT_AUTH[@]}" || _pull_rc=$?
+  if [ "$_pull_rc" -eq 2 ]; then
+    log "ERROR: AutoRunpod worktree corrupted — cannot deploy files safely, aborting."
+    exit 1
+  fi
 else
   log "cloning $REPO_URL"
   if ! git "${GIT_AUTH[@]}" clone --depth 1 "$REPO_URL" "$CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1; then
@@ -135,7 +151,11 @@ BACKUP_REPO_URL="https://github.com/castle923/Runpod-Backup.git"
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   if [ -d "$BACKUP_CLONE_DIR/.git" ]; then
     sanitize_origin_url "$BACKUP_CLONE_DIR" "$BACKUP_REPO_URL"
-    safe_pull "$BACKUP_CLONE_DIR" "${GIT_AUTH[@]}"
+    _backup_pull_rc=0
+    safe_pull "$BACKUP_CLONE_DIR" "${GIT_AUTH[@]}" || _backup_pull_rc=$?
+    if [ "$_backup_pull_rc" -eq 2 ]; then
+      warn "Runpod-Backup worktree corrupted — rclone.conf may not be deployable"
+    fi
   else
     if ! git "${GIT_AUTH[@]}" clone --depth 1 "$BACKUP_REPO_URL" "$BACKUP_CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1; then
       warn "Runpod-Backup clone failed — rclone.conf must be configured manually"
@@ -192,8 +212,12 @@ mkdir -p "$FORGE_ROOT"
 
 # 5. scripts/, dynamic_prompts/ 배치
 mkdir -p /workspace/scripts /workspace/dynamic_prompts
-cp "$CLONE_DIR"/scripts/*.sh "$CLONE_DIR"/scripts/*.py /workspace/scripts/ 2>/dev/null
-cp "$CLONE_DIR"/dynamic_prompts/* /workspace/dynamic_prompts/ 2>/dev/null
+if ! cp "$CLONE_DIR"/scripts/*.sh "$CLONE_DIR"/scripts/*.py /workspace/scripts/ 2>/dev/null; then
+  warn "scripts/ 복사 실패 — 자동화 스크립트가 누락될 수 있음"
+fi
+if ! cp "$CLONE_DIR"/dynamic_prompts/* /workspace/dynamic_prompts/ 2>/dev/null; then
+  warn "dynamic_prompts/ 복사 실패"
+fi
 chmod +x /workspace/scripts/*.sh 2>/dev/null
 log "scripts/ and dynamic_prompts/ deployed"
 
@@ -207,12 +231,21 @@ fi
 
 # 6-2. 리스너 서버 배치 (감시·자동복구·업로드 API)
 mkdir -p /workspace/listener
-cp "$CLONE_DIR"/listener/server.py /workspace/listener/server.py 2>/dev/null
-cp "$CLONE_DIR"/listener/start.sh  /workspace/listener/start.sh 2>/dev/null
+_listener_ok=true
+if ! cp "$CLONE_DIR"/listener/server.py /workspace/listener/server.py 2>/dev/null; then
+  warn "listener/server.py 복사 실패"; _listener_ok=false
+fi
+if ! cp "$CLONE_DIR"/listener/start.sh /workspace/listener/start.sh 2>/dev/null; then
+  warn "listener/start.sh 복사 실패"; _listener_ok=false
+fi
 chmod +x /workspace/listener/start.sh 2>/dev/null
-cp "$CLONE_DIR"/scripts/restart_forge_clean.sh /workspace/restart_forge_clean.sh 2>/dev/null
+if ! cp "$CLONE_DIR"/scripts/restart_forge_clean.sh /workspace/restart_forge_clean.sh 2>/dev/null; then
+  warn "restart_forge_clean.sh 복사 실패"
+fi
 chmod +x /workspace/restart_forge_clean.sh 2>/dev/null
-log "listener + restart_forge_clean.sh deployed"
+if [ "$_listener_ok" = true ]; then
+  log "listener + restart_forge_clean.sh deployed"
+fi
 
 # 6-3. nginx 설정 배치
 if [ -f "$CLONE_DIR/config/nginx.conf" ]; then
@@ -261,13 +294,18 @@ for entry in "${CRON_ENTRIES[@]}"; do
 $entry"
   fi
 done
-echo "$new_cron" | crontab -
-log "crontab synced (5 automation entries ensured)"
+if ! echo "$new_cron" | crontab - 2>>"$LOGDIR/bootstrap.log"; then
+  warn "crontab 등록 실패 — 자동화 작업(백업/복원/동기화)이 예약되지 않음"
+else
+  log "crontab synced (5 automation entries ensured)"
+fi
 
 # 8. auto_restore_on_boot.sh 즉시 1회 실행 (재부팅을 기다리지 않고 바로 복원 시작)
 if [ -f /workspace/scripts/auto_restore_on_boot.sh ]; then
   log "running auto_restore_on_boot.sh once now (LoRA/checkpoint/dynamic_prompts restore)"
-  bash /workspace/scripts/auto_restore_on_boot.sh
+  if ! bash /workspace/scripts/auto_restore_on_boot.sh; then
+    warn "auto_restore_on_boot.sh 실행 실패 — LoRA/체크포인트 복원을 수동으로 확인하세요"
+  fi
 fi
 
 # 9. 리스너 즉시 기동 (재부팅을 기다리지 않는다)
