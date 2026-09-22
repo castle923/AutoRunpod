@@ -107,18 +107,35 @@ safe_pull() {
         return 2
       fi
       warn "git pull caused merge conflict in $repo_dir — aborted merge, using previous state"
-    elif [ -f "$repo_dir/.git/rebase-merge/interactive" ] || [ -d "$repo_dir/.git/rebase-apply" ]; then
+    elif [ -d "$repo_dir/.git/rebase-merge" ] || [ -d "$repo_dir/.git/rebase-apply" ]; then
       warn "git pull left rebase state in $repo_dir — worktree corrupted"
       return 2
     else
       warn "git pull failed for $repo_dir — using existing clone"
     fi
     # 복구 후 작업 트리가 깨끗한지 최종 확인
-    if [ -n "$(git -C "$repo_dir" status --porcelain 2>/dev/null)" ]; then
+    local _status_out _status_rc=0
+    _status_out=$(git -C "$repo_dir" status --porcelain 2>&1) || _status_rc=$?
+    if [ "$_status_rc" -ne 0 ]; then
+      warn "git status failed in $repo_dir (exit $_status_rc) — cannot verify worktree"
+      return 2
+    fi
+    if [ -n "$_status_out" ]; then
       warn "worktree still dirty after recovery in $repo_dir — files may be inconsistent"
       return 2
     fi
     return 1
+  fi
+  # pull 성공 후에도 작업 트리 정결 확인
+  local _status_out2 _status_rc2=0
+  _status_out2=$(git -C "$repo_dir" status --porcelain 2>&1) || _status_rc2=$?
+  if [ "$_status_rc2" -ne 0 ]; then
+    warn "git status failed after successful pull in $repo_dir (exit $_status_rc2)"
+    return 2
+  fi
+  if [ -n "$_status_out2" ]; then
+    warn "worktree dirty after successful pull in $repo_dir — unexpected local changes"
+    return 2
   fi
   return 0
 }
@@ -154,14 +171,17 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
     _backup_pull_rc=0
     safe_pull "$BACKUP_CLONE_DIR" "${GIT_AUTH[@]}" || _backup_pull_rc=$?
     if [ "$_backup_pull_rc" -eq 2 ]; then
-      warn "Runpod-Backup worktree corrupted — rclone.conf may not be deployable"
+      warn "Runpod-Backup worktree corrupted — skipping rclone.conf deployment from this checkout"
     fi
   else
     if ! git "${GIT_AUTH[@]}" clone --depth 1 "$BACKUP_REPO_URL" "$BACKUP_CLONE_DIR" >> "$LOGDIR/bootstrap.log" 2>&1; then
       warn "Runpod-Backup clone failed — rclone.conf must be configured manually"
+      _backup_pull_rc=2
     fi
   fi
-  if [ -f "$BACKUP_CLONE_DIR/secrets/rclone.conf" ]; then
+  if [ "${_backup_pull_rc:-0}" -eq 2 ]; then
+    log "Skipping rclone.conf deployment — Runpod-Backup checkout is not trustworthy"
+  elif [ -f "$BACKUP_CLONE_DIR/secrets/rclone.conf" ]; then
     mkdir -p /root/.config/rclone /workspace/rclone_backup_config
     if cp "$BACKUP_CLONE_DIR/secrets/rclone.conf" /root/.config/rclone/rclone.conf && \
        cp "$BACKUP_CLONE_DIR/secrets/rclone.conf" /workspace/rclone_backup_config/rclone.conf; then
@@ -207,8 +227,20 @@ fi
 
 # 4. config.json / ui-config.json 배치
 mkdir -p "$FORGE_ROOT"
-[ -f "$CLONE_DIR/config.json" ] && cp "$CLONE_DIR/config.json" "$FORGE_ROOT/config.json" && log "config.json deployed"
-[ -f "$CLONE_DIR/ui-config.json" ] && cp "$CLONE_DIR/ui-config.json" "$FORGE_ROOT/ui-config.json" && log "ui-config.json deployed"
+if [ -f "$CLONE_DIR/config.json" ]; then
+  if cp "$CLONE_DIR/config.json" "$FORGE_ROOT/config.json"; then
+    log "config.json deployed"
+  else
+    warn "config.json 복사 실패"
+  fi
+fi
+if [ -f "$CLONE_DIR/ui-config.json" ]; then
+  if cp "$CLONE_DIR/ui-config.json" "$FORGE_ROOT/ui-config.json"; then
+    log "ui-config.json deployed"
+  else
+    warn "ui-config.json 복사 실패"
+  fi
+fi
 
 # 5. scripts/, dynamic_prompts/ 배치
 mkdir -p /workspace/scripts /workspace/dynamic_prompts
@@ -250,13 +282,15 @@ fi
 # 6-3. nginx 설정 배치
 if [ -f "$CLONE_DIR/config/nginx.conf" ]; then
   cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig 2>/dev/null
-  cp "$CLONE_DIR/config/nginx.conf" /etc/nginx/nginx.conf
-  if nginx -t >/dev/null 2>&1; then
-    nginx -s reload 2>/dev/null || nginx 2>/dev/null
-    log "nginx.conf deployed and reloaded"
-  else
+  if ! cp "$CLONE_DIR/config/nginx.conf" /etc/nginx/nginx.conf; then
+    warn "nginx.conf 복사 실패"
+  elif ! nginx -t >/dev/null 2>&1; then
     cp /etc/nginx/nginx.conf.orig /etc/nginx/nginx.conf 2>/dev/null
     warn "nginx.conf 검증 실패 — 원본으로 되돌림"
+  elif nginx -s reload 2>/dev/null || nginx 2>/dev/null; then
+    log "nginx.conf deployed and reloaded"
+  else
+    warn "nginx.conf 배치됐으나 reload/start 실패 — 수동 확인 필요"
   fi
 fi
 
