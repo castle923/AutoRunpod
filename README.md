@@ -71,6 +71,8 @@ RunPod GPU 포드 자동화 저장소입니다. 포드 생성/상태 조회, For
 - `BACKUP_AND_RESTORE.md` — rclone 작동 원리, 백업/복원 구조, 재설정 절차
 - `MONITORING_ROUTINES.md` — 모니터링 체계 정리 (리스너 서버 + Claude Routine)
 - `SETUP_HISTORY.md` — 최초 구축(2026-08-27) 당시 작업 내역
+- `docs/H3_MOBILE_REQUIREMENTS.md` — MiniMax H3 모바일 킷 도입 요청 사항 정리 (결정·제공 항목, 킷 수정, 승인 게이트)
+- `docs/QWEN_IMAGE_2_1_RESEARCH.md` — Qwen-Image-2.1(2026-09-20 공개) 조사 보고서
 
 ## 사용법
 
