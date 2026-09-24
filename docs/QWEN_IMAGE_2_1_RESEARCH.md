@@ -29,6 +29,7 @@
 - **3090 적합성**
   - **2026-09-24 HF 전수 점검(4.6) 결과 권장 세트를 바꿨다.** 권장: Comfy-Org **bf16 DiT**(14.23 GB) + Comfy-Org/Qwen3-VL **fp8_scaled TE**(10.59 GB) + VAE(0.68 GB) = 25.49 GB. 특수 커널(ConvRot) 없이 코어 로더만으로 동작하는 조합이다. 1024² 피크는 약 16–18 GB로 추정(미검증)해 24 GB에 들어간다.
   - 이전 권장이던 int8 세트(17.28 GB)는 comfy-kitchen ConvRot 커널이 필요한데, sm_86(3090)에서의 동작이 미검증이라 **2순위**로 내렸다. 3090 1차 실측은 아직 없다.
+  - **텍스트 인코더는 사용자 결정으로 heretic 변형을 쓴다(4.7).** 선택 파일: `pottokao/Qwen-Image-2.1-Text-Encoder-Heretic`의 `qwen3vl_8b_bf16_heretic.safetensors`(17.53 GB). 적용 세트(안 H)는 bf16 DiT + heretic bf16 TE + VAE = 32.44 GB다.
   - 전제 조건은 ComfyUI ≥0.37.0, cu130 PyTorch(PyPI 기준 torch ≥2.11), 호스트 드라이버 r580+이다.
   - 드라이버(580.65.06, `project/HANDOFF.md`)는 충족하지만, 현재 ComfyUI venv의 torch 2.5.1+cu121은 **미달**한다.
 - **다른 모델과의 관계**
@@ -36,7 +37,7 @@
   - Anima(Qwen3-0.6B TE, Qwen-Image VAE)와 공유하는 가중치가 없다.
   - Forge는 지원하지 않는 것으로 간주한다.
 - **권고**
-  - 3090 포드에 Qwen-Image-2.1 전용 ComfyUI(≥0.37.x)와 **새 venv**(cu130 torch)를 별도 경로에 만들고, 안 S(bf16 DiT + fp8_scaled TE + VAE, 25.49 GB)로 시험한다(4.6, 5.2).
+  - 3090 포드에 Qwen-Image-2.1 전용 ComfyUI(≥0.37.x)와 **새 venv**(cu130 torch)를 별도 경로에 만들고, 안 H(bf16 DiT + heretic bf16 TE + VAE, 32.44 GB)로 시험한다(4.6, 4.7, 5.2). 같은 시드로 공식 TE(안 S)와 비교해 품질 차이를 확인한다.
   - 기존 `/workspace/venvs/comfyui`는 롤백용으로 그대로 둔다.
   - H3 키트와 한 환경으로 합치는 것은 권하지 않는다. `docs/H3_MOBILE_REQUIREMENTS.md`는 H3를 새 32GB+ 포드에서 돌리고(D2) 킷이 검증한 ComfyUI 0.30.0으로 고정할 것(D16)을 권한다. 2.1은 ≥0.37.0이 필요하므로, 한 ComfyUI로 합치려면 H3를 0.37에서 따로 검증해야 한다.
   - 포드 정지·재시작은 필요 없다. ComfyUI 프로세스 재시작만 승인 후 진행한다. 비상업·연구 용도로만 쓴다.
@@ -401,6 +402,48 @@ HF에서 2026-09-23에 조회했다.
 
 **다운로드 주의**: Comfy-Org DiT는 2026-09-19T10:04Z, VAE는 09-18T14:26Z에 교체됐다. 그 전에 받은 파일(구 DiT 14,230,284,584 B, 구 VAE 675,508,656 B)은 구버전이다. TE는 바뀌지 않았다.
 
+
+### 4.7 텍스트 인코더 heretic·abliterated 변형 (2026-09-24, 사용자 선택)
+
+사용자가 TE를 heretic 또는 abliterated 변형으로 쓰기로 했다. HF에서 Qwen3-VL-8B-Instruct 기반 변형을 찾아(59개 repo) ComfyUI 적합성과 변경 범위를 확인했다. ComfyUI에서 실제로 로드해 보지는 않았다.
+
+**ComfyUI 키 레이아웃 기준**
+- 코어 CLIPLoader(type `qwen_image`)용 Comfy-Org `qwen3vl_8b_bf16`은 750개 키다: `model.layers.*` 396, `model.embed_tokens`, `model.norm`, `model.visual.*` 351, `lm_head.weight`.
+- HF 원본(4개 분할 파일)과의 차이는 접두사 `model.language_model.` → `model.` 하나뿐이다. 텐서 내용은 같다.
+- 따라서 HF 레이아웃 변형은 분할 파일을 합치고 접두사를 바꿔야 한다. 합치기만 하면 키가 맞지 않는다. ComfyUI가 HF 키를 자동으로 바꿔 주는지는 미검증이다.
+
+**순위**
+
+| 순위 | repo / 파일 | 크기(B) | 로드 방식 | 변경 범위(원본 대비) | 비고 |
+|---|---|---|---|---|---|
+| **1 (적용)** | pottokao/Qwen-Image-2.1-Text-Encoder-Heretic / `qwen3vl_8b_bf16_heretic.safetensors` | 17,534,334,584 | 코어 CLIPLoader 그대로. 750개 키의 이름·dtype·shape·오프셋이 Comfy-Org bf16과 일치 | 57개 텐서만 다름(o_proj L5–35, down_proj L10–35). 비전 타워 351개, embed_tokens, lm_head는 원본과 동일 | Heretic v2.0.0.dev0, 카드 기준 거부 5/100, KL 0.0220. apache-2.0, 비게이트. sha256 `b1f17ffe…4b1`, 리비전 `047e5434…` |
+| 2 | DreamFast/Qwen3-VL-8B-Heretic-1.3.0 / `comfyui/qwen3-vl-8b-heretic-1.3.0.safetensors` | 17,534,334,584 | 코어 CLIPLoader 그대로(Comfy 레이아웃) | 53개 텐서(o_proj L9–35, down_proj L10–35). 비전 타워 동일 | 거부 6/100, KL 0.0314. 제작자 이력이 더 길다. 같은 repo의 fp8·nvfp4 파일은 쓰지 않는다 |
+| 3 | AEmotionStudio/qwen3vl-8b-abliterated-fp8-scaled | 10,588,637,512 | 공식 fp8_scaled와 오프셋까지 동일 구조 | 가중치 분석상 huihui abliteration을 재양자화한 것 | 디스크를 줄이려면 이것. 카드에 방법·지표 없음 |
+| 4 | heretic-org/Qwen-3-VL-8B-Instruct-heretic | HF 분할 | 병합 + 접두사 변경 필요 | 59개 텐서, 비전 타워 동일 | 문서화가 가장 좋음(KL 0.0214, 거부 6/100) |
+| 5 | huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated | HF 분할 | 병합 + 접두사 변경 필요 | 72개 텐서(모든 층의 o_proj, down_proj) | 널리 쓰이는 원조 abliteration. 지표 없음 |
+
+**쓰지 않는 것**
+- pottokao의 fp8(스케일 없음, 약 3% 가중치 오차)·int8 convrot·W4A8 파일: 로드 또는 3090 커널이 미검증이다.
+- GGUF TE(HauhauCS, mradermacher, noctrex 등): 검토되지 않은 add-on 노드가 필요하고, mmproj가 없으면 편집에 쓸 수 없다.
+- 미러 repo(alexbird, beycanai, kkxao, chfm 등): 원본에서 받는다.
+- catplusplus: lm_head가 없고 Heretic 도구가 아닌 자체 방법이다.
+- 8B-Instruct가 아닌 변형(Thinking, 4B, 32B, Qwen2.5-VL): 호환되지 않는다.
+
+**주의**
+- Qwen-Image-2.1 본체는 원본 TE로 학습됐다. 변경 범위는 o_proj·down_proj 일부지만, 프롬프트 반영이나 품질이 달라질 수 있다. 공식 TE와 같은 시드로 비교한다(7.3).
+- HF 레이아웃 변형을 쓸 때의 변환(포드에서 실행, 62 GB RAM에 들어감):
+
+```python
+import glob
+from safetensors.torch import load_file, save_file
+sd = {}
+for f in sorted(glob.glob('model-0000*-of-0000*.safetensors')):
+    sd.update(load_file(f))
+sd = {('model.' + k[len('model.language_model.'):] if k.startswith('model.language_model.') else k): v for k, v in sd.items()}
+assert len(sd) == 750
+save_file(sd, 'models/text_encoders/<이름>.safetensors', metadata={'format': 'pt'})
+```
+
 ---
 
 ## 5. 현재 포드(RTX 3090 24GB) 적용 가능성
@@ -426,6 +469,8 @@ HF에서 2026-09-23에 조회했다.
 |---|---|---|---|---|---|
 | **S (권장, 2026-09-24 갱신)** | Comfy-Org bf16 DiT + Comfy-Org/Qwen3-VL `qwen3vl_8b_fp8_scaled` + VAE bf16 | 25.49 GB | 1024² 피크 약 16–18 GB로 추정(미검증). TE는 인코딩 후 RAM으로 오프로드 | ComfyUI ≥0.37. ConvRot·comfy-kitchen 불필요. FP8 TE는 sm_86에서 저장 형식으로만 쓰여 속도 이득은 없음(미시험) | 특수 커널 의존이 없어 가장 안전 |
 | S' | S에서 TE만 `qwen3vl_8b_bf16`(17.53 GB) | 32.44 GB | S와 같음 | ComfyUI ≥0.37 | FP8 TE에 문제가 있을 때 |
+| **H (사용자 선택, 적용)** | Comfy-Org bf16 DiT + pottokao `qwen3vl_8b_bf16_heretic` + VAE bf16 | 32.44 GB | S'와 같음(TE 크기 동일) | ComfyUI ≥0.37. 코어 CLIPLoader(type `qwen_image`)로 그대로 로드(키 레이아웃 일치, 실제 로드는 미시험) | heretic TE. 비교 기준으로 공식 fp8_scaled TE(10.59 GB)도 함께 받는다 |
+| H' | H에서 TE만 AEmotionStudio `qwen3vl8b_abliterated_fp8_scaled`(10.59 GB) | 25.49 GB | S와 같음 | 공식 fp8_scaled와 구조 동일 | abliterated(huihui 계열), 디스크 절약용. 카드에 방법·지표 없음 |
 | A (2순위) | Comfy-Org int8 DiT + `qwen3vl_8b_int8_convrot` + VAE bf16 | 17.28 GB | 1024² 기준 피크 12–18 GB로 추정. 16 GB 카드 실측은 약 15 GB | cu130 torch, 드라이버 r580+, ComfyUI ≥0.37, **comfy-kitchen ConvRot의 sm_86 동작(미검증)** | 공식 템플릿 기본값. S가 동작한 뒤 속도·디스크 절약용으로 시험 |
 | A' | int8 DiT + `qwen3vl_8b_w4a8` + VAE | 14.24 GB | A보다 낮을 것(추론) | A 조건에 더해 w4a8 커널의 Ampere 동작이 필요(미검증) | 선택 사항 |
 | B | bf16 DiT + int8 TE + VAE | 24.26 GB | 17–21 GB로 추정. TE는 인코딩 후 오프로드 | A와 같음(TE가 ConvRot) | 품질 기준선 비교용 |
@@ -461,7 +506,7 @@ HF에서 2026-09-23에 조회했다.
   - 그러나 H3 모바일 킷은 0.30.0에서만 검증되었고, DaSiWa 노드가 0.37에서 동작하는지는 미검증이다. H3 문서(D16)는 0.30.0 고정을 권하므로 기본은 **분리 운용**이다.
 - **디스크**
   - H3 키트의 모바일 UI 필수 4개는 약 41.74 GB다(`docs/H3_MOBILE_REQUIREMENTS.md` §6.2. fp16 video VAE 기준, DiT 크기는 미검증).
-  - Qwen 안 S(25.49 GB)를 더하면 약 67.2 GB다(int8 세트 17.28 GB면 약 59.0 GB). 300 GB 볼륨의 알려진 사용량(약 159 GB)을 고려하면 들어갈 가능성이 높지만, 실제 여유 공간은 확인하지 않았다(H3 문서 §5 디스크 행). H3 문서가 권하는 대로 H3를 새 포드에 두면 3090 포드에는 Qwen 세트만 추가된다.
+  - Qwen 안 H(32.44 GB, heretic TE 적용)를 더하면 약 74.2 GB다. 비교용 공식 fp8 TE(10.59 GB)까지 받으면 약 84.8 GB다(안 S 25.49 GB면 약 67.2 GB). 300 GB 볼륨의 알려진 사용량(약 159 GB)을 고려하면 들어갈 가능성이 높지만, 실제 여유 공간은 확인하지 않았다(H3 문서 §5 디스크 행). H3 문서가 권하는 대로 H3를 새 포드에 두면 3090 포드에는 Qwen 세트만 추가된다.
   - 선택 추가분은 bf16 DiT +14.23 GB, PE 파일당 +9.47 GB다.
   - 현재 여유 공간은 확인하지 않았다.
 - **VRAM**: 둘을 동시에 올릴 수 없으므로 순차로 쓴다. H3는 32GB+가 필요해 24 GB에서는 강한 오프로드가 필요하다.
@@ -516,7 +561,7 @@ HF에서 2026-09-23에 조회했다.
    - 경로 예: `/workspace/venvs/comfyui-next`
    - 기존 ComfyUI를 새 venv로 재시작할지, 다른 포트에서 병행할지.
 4. **파일 세트**: 기본은 S(25.49 GB, 2026-09-24 갱신). S가 동작하면 A(int8, 17.28 GB)를 추가로 시험할지, PE-T2I·PE-I2I(각 +9.47 GB)를 추가할지.
-5. **가중치 출처**: 공식(Qwen, Comfy-Org)과 검증된 GGUF만 쓸 것을 권장한다. 검열 해제·출처 불명 가중치는 제외한다.
+5. **가중치 출처**: DiT와 VAE는 공식(Comfy-Org)만 쓴다. TE는 사용자 결정으로 heretic 변형을 쓰되, 4.7에서 원본 대비 변경 범위를 확인한 파일만 쓰고 sha256으로 검증한다. 출처 불명·가중치 변형 DiT(예: abenzerps Uncensored)는 제외한다.
 6. **결과물 저장·백업 위치**: 4팀 공유 드라이브는 대상에서 제외한다. 자동 동기화 경로에도 넣지 않는다.
 
 ### 7.2 절차와 승인 게이트
@@ -544,9 +589,12 @@ HF에서 2026-09-23에 조회했다.
 | 저장 경로 | 파일 | 바이트 |
 |---|---|---|
 | `models/diffusion_models/` | `qwen_image_2.1_bf16.safetensors` (Comfy-Org/Qwen-Image-2.1) | 14,230,280,616 |
-| `models/text_encoders/` | `qwen3vl_8b_fp8_scaled.safetensors` (Comfy-Org/Qwen3-VL) | 10,588,637,512 |
+| `models/text_encoders/` | `qwen3vl_8b_bf16_heretic.safetensors` (pottokao/Qwen-Image-2.1-Text-Encoder-Heretic, 리비전 `047e54342fc4bfcd2addd54049db9c90bb74731e`) | 17,534,334,584 |
 | `models/vae/` | `qwen_image_2.1_vae_bf16.safetensors` (Comfy-Org/Qwen-Image-2.1) | 675,509,688 |
-| **합계 (안 S)** | | **25,494,427,816** |
+| **합계 (안 H)** | | **32,440,124,888** |
+| (비교용, 선택) `models/text_encoders/` | `qwen3vl_8b_fp8_scaled.safetensors` (Comfy-Org/Qwen3-VL) | 10,588,637,512 |
+
+- heretic TE sha256: `b1f17ffe6e043c0e1da49ba75fd537d3ea3074fee83b4c9de377bb54689774b1`. 리비전을 고정한 URL로 받는다: `https://huggingface.co/pottokao/Qwen-Image-2.1-Text-Encoder-Heretic/resolve/047e54342fc4bfcd2addd54049db9c90bb74731e/qwen3vl_8b_bf16_heretic.safetensors`.
 
 - 받은 뒤 sha256을 HF API 값과 비교한다(4.6). DiT는 2026-09-19T10:04Z, VAE는 09-18T14:26Z에 교체됐으므로 그 이전에 받은 사본은 쓰지 않는다(구 DiT 14,230,284,584 B, 구 VAE 675,508,656 B).
 
@@ -572,6 +620,7 @@ HF에서 2026-09-23에 조회했다.
   - 피크 VRAM이 24 GB 미만이다(`nvidia-smi` 기록).
   - 소요 시간을 기록해 추정치 25–40 s와 비교한다.
 - RGBA 출력 PNG에 알파 채널이 있다.
+- heretic TE로 같은 시드·프롬프트를 공식 TE(fp8_scaled)와 비교 생성해, 프롬프트 반영과 품질이 크게 떨어지지 않는지 확인한다(본체는 원본 TE로 학습됐다).
 - 참조 2장 이상의 편집이 성공하고, 정체성 유지를 육안으로 확인한다.
 - 품질 점검 항목: 황색 톤, VAE 격자, 손, 글자 렌더링, Illustrious와 비교한 애니 품질.
 - 기존 venv, Anima, Forge가 정상 동작해 롤백이 가능하다.
