@@ -73,6 +73,7 @@ RunPod GPU 포드 자동화 저장소입니다. 포드 생성/상태 조회, For
 - `SETUP_HISTORY.md` — 최초 구축(2026-08-27) 당시 작업 내역
 - `docs/H3_MOBILE_REQUIREMENTS.md` — MiniMax H3 모바일 킷 도입 요청 사항 정리 (결정·제공 항목, 킷 수정, 승인 게이트)
 - `docs/QWEN_IMAGE_2_1_RESEARCH.md` — Qwen-Image-2.1(2026-09-20 공개) 조사 보고서
+- `docs/LOCAL_AGENT_MODEL_FEASIBILITY.md` — RunPod에서 8GB 노트북용 AI 에이전트 모델 제작 현실성 조사
 
 ## 사용법
 
