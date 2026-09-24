@@ -27,7 +27,8 @@
   - 이전 Qwen-Image 계열의 Apache-2.0에서 **Qwen Research License(비상업, 연구·평가 전용)**로 바뀌었다.
   - 생성물의 상업 이용 가능 여부는 공식 X 게시물과 LICENSE 본문이 엇갈려 **미확정**이다.
 - **3090 적합성**
-  - Comfy-Org int8 세트(17.28 GB)로 24 GB에 들어갈 가능성이 높다. 16 GB 카드 실측 피크는 약 15 GB였다. 다만 3090 1차 실측은 없다.
+  - **2026-09-24 HF 전수 점검(4.6) 결과 권장 세트를 바꿨다.** 권장: Comfy-Org **bf16 DiT**(14.23 GB) + Comfy-Org/Qwen3-VL **fp8_scaled TE**(10.59 GB) + VAE(0.68 GB) = 25.49 GB. 특수 커널(ConvRot) 없이 코어 로더만으로 동작하는 조합이다. 1024² 피크는 약 16–18 GB로 추정(미검증)해 24 GB에 들어간다.
+  - 이전 권장이던 int8 세트(17.28 GB)는 comfy-kitchen ConvRot 커널이 필요한데, sm_86(3090)에서의 동작이 미검증이라 **2순위**로 내렸다. 3090 1차 실측은 아직 없다.
   - 전제 조건은 ComfyUI ≥0.37.0, cu130 PyTorch(PyPI 기준 torch ≥2.11), 호스트 드라이버 r580+이다.
   - 드라이버(580.65.06, `project/HANDOFF.md`)는 충족하지만, 현재 ComfyUI venv의 torch 2.5.1+cu121은 **미달**한다.
 - **다른 모델과의 관계**
@@ -35,7 +36,7 @@
   - Anima(Qwen3-0.6B TE, Qwen-Image VAE)와 공유하는 가중치가 없다.
   - Forge는 지원하지 않는 것으로 간주한다.
 - **권고**
-  - 3090 포드에 Qwen-Image-2.1 전용 ComfyUI(≥0.37.x)와 **새 venv**(cu130 torch)를 별도 경로에 만들고, int8 세트로 시험한다.
+  - 3090 포드에 Qwen-Image-2.1 전용 ComfyUI(≥0.37.x)와 **새 venv**(cu130 torch)를 별도 경로에 만들고, 안 S(bf16 DiT + fp8_scaled TE + VAE, 25.49 GB)로 시험한다(4.6, 5.2).
   - 기존 `/workspace/venvs/comfyui`는 롤백용으로 그대로 둔다.
   - H3 키트와 한 환경으로 합치는 것은 권하지 않는다. `docs/H3_MOBILE_REQUIREMENTS.md`는 H3를 새 32GB+ 포드에서 돌리고(D2) 킷이 검증한 ComfyUI 0.30.0으로 고정할 것(D16)을 권한다. 2.1은 ≥0.37.0이 필요하므로, 한 ComfyUI로 합치려면 H3를 0.37에서 따로 검증해야 한다.
   - 포드 정지·재시작은 필요 없다. ComfyUI 프로세스 재시작만 승인 후 진행한다. 비상업·연구 용도로만 쓴다.
@@ -354,6 +355,52 @@ HF에서 2026-09-23에 조회했다.
   - Forge의 기존 Qwen-Image 지원은 구 아키텍처용이다. 2.1은 DiT, VAE, TE가 모두 다르다(추론).
 - **학습 도구**: DiffSynth-Studio에 Qwen-Image-2.1 문서 페이지가 있다(스니펫). musubi-tuner와 ai-toolkit 지원은 미검증이다.
 
+
+### 4.6 Hugging Face 전수 점검 (2026-09-24)
+
+3090 포드 조건(24 GB VRAM, sm_86, ComfyUI 로드 가능, safetensors/GGUF만, 출처·라이선스, 비게이트)으로 HF를 다시 훑었다.
+
+- **범위**: base_model 트리, 키워드 검색, 공식 repo를 합쳐 226개를 찾았고, 관련 있는 204개를 판정했다.
+- **판정**: 권장 1, 대안 24, 보조 25, 부적합 154. 권장·대안 25개는 별도 검증자가 다시 확인했고, 그중 20개가 부적합으로 내려갔다. 보조 25개는 반박 검증을 하지 않았다.
+- **확인 방법**: HF API의 파일 크기·sha256·라이선스·게이트 여부, safetensors/GGUF 헤더 Range 읽기, 일부 텐서를 업스트림 0919 체크포인트와 바이트 비교.
+
+**권장**
+
+| repo | 파일 | 바이트 | 비고 |
+|---|---|---|---|
+| Comfy-Org/Qwen-Image-2.1 | `diffusion_models/qwen_image_2.1_bf16.safetensors` | 14,230,280,616 (sha256 앞자리 89f4158d066cc339) | 업스트림 0919 가중치와 바이트 일치를 표본 확인. 코어 로더만 필요 |
+| Comfy-Org/Qwen3-VL | `text_encoders/qwen3vl_8b_fp8_scaled.safetensors` | 10,588,637,512 (4ba424cf62e51392) | 공식, apache-2.0. comfy_quant `float8_e4m3fn`(ConvRot 아님). sm_86에서는 저장 형식으로만 쓰여 속도 이득 없음(미시험) |
+| Comfy-Org/Qwen-Image-2.1 | `vae/qwen_image_2.1_vae_bf16.safetensors` | 675,509,688 (bb21f7473051e1ac) | |
+
+- 2.1 TE는 stock Qwen3-VL-8B-Instruct와 같다(750개 키 동일, 표본 텐서 6개 동일). 그래서 Comfy-Org/Qwen3-VL의 TE를 그대로 쓸 수 있다.
+- 같은 repo의 int8_convrot(DiT 7,256,783,064 / TE 9,350,798,360)와 w4a8 TE는 comfy-kitchen ConvRot 커널이 필요하다. sm_86 동작이 미검증이라 2순위다.
+
+**대안 (검증 통과)**
+
+| repo | 비고 |
+|---|---|
+| Abiray/Qwen-Image-2.1-GGUF | 헤더 arch=qwen_image. Q8_0이 0919 가중치의 재양자화와 정확히 일치. stock city96 로드는 미검증. 커뮤니티 제작 |
+| AlperKTS/Qwen-Image-2.1-GGUF | arch=qwen_image, Q8_0이 0919와 일치. ComfyUI 워크플로 포함. 커뮤니티 제작 |
+| realrebelai/Qwen-Image-2.1_GGUFs | 가중치는 정상이나 라이선스 미표기, 파일 라벨과 내용 불일치. 약한 대안 |
+| pottokao/Qwen-Image-2.1-DiT-GGUF | Q8_0만 확인. 제작자 계정의 repo 대부분이 검열 해제·파생판이라 공식 TE와만 조합할 것 |
+
+**부적합으로 판정한 주요 유형**
+
+- GGUF에 architecture 메타데이터가 없어 포크 로더가 필요: unsloth, leejet, molbal(`qwen_image21`), vantagewithai(`flux`로 잘못 표기).
+- 가중치 변형: abenzerps "Uncensored"(DiT attention 가중치가 업스트림과 다름. 표본에서 bf16 값의 2–18%가 바뀜).
+- 공식 repo의 단순 복제본(HF "Duplicate"): chfm, EllipsesMark, taurusduan, toxicdog, TopherAU 등. 공식 repo가 비게이트라 쓸 이유가 없다.
+- 실험적 INT4/W4A8/DF11: toxicdog·chfm INT4ConvRot, NidAll, tsolful, mingyi456. 커널·로더가 미검증이다.
+- 공식 `Qwen/Qwen-Image-2.1`: diffusers 레이아웃이라 ComfyUI에서 직접 로드할 수 없다. 출처 기준으로만 쓴다.
+- Qwen3-VL GGUF TE(Qwen 공식, unsloth): 검토되지 않은 add-on 노드가 필요하고, fp8_scaled 대비 이점이 없다.
+
+**보조 (선택, 반박 검증 없음)**
+
+- Viggle/Qwen-Image-2.1-viggle-turbo: 4–5 step 증류 LoRA, 제작사 원본. ComfyUI 키 변환본은 t8star(원본과 페이로드 일부 일치 확인).
+- 공식 PE-T2I/PE-I2I(bf16, 단독 실행만 24 GB에 들어감), prithivMLmods PE GGUF, ML-Intern-lab Pocket-2B(증류 PE).
+- 커뮤니티 LoRA 다수(편집·스타일). 라이선스 표기가 업스트림과 다른 것이 있어 비상업으로 취급한다.
+
+**다운로드 주의**: Comfy-Org DiT는 2026-09-19T10:04Z, VAE는 09-18T14:26Z에 교체됐다. 그 전에 받은 파일(구 DiT 14,230,284,584 B, 구 VAE 675,508,656 B)은 구버전이다. TE는 바뀌지 않았다.
+
 ---
 
 ## 5. 현재 포드(RTX 3090 24GB) 적용 가능성
@@ -377,10 +424,12 @@ HF에서 2026-09-23에 조회했다.
 
 | 안 | 파일 | 디스크 | 예상 VRAM | 조건 | 평가 |
 |---|---|---|---|---|---|
-| **A (권장)** | Comfy-Org int8 DiT + `qwen3vl_8b_int8_convrot` + VAE bf16 | 17.28 GB | 1024² 기준 피크 12–18 GB로 추정. 16 GB 카드 실측은 약 15 GB | cu130 torch, 드라이버 r580+, ComfyUI ≥0.37 | 공식 템플릿 기본값과 같음 |
+| **S (권장, 2026-09-24 갱신)** | Comfy-Org bf16 DiT + Comfy-Org/Qwen3-VL `qwen3vl_8b_fp8_scaled` + VAE bf16 | 25.49 GB | 1024² 피크 약 16–18 GB로 추정(미검증). TE는 인코딩 후 RAM으로 오프로드 | ComfyUI ≥0.37. ConvRot·comfy-kitchen 불필요. FP8 TE는 sm_86에서 저장 형식으로만 쓰여 속도 이득은 없음(미시험) | 특수 커널 의존이 없어 가장 안전 |
+| S' | S에서 TE만 `qwen3vl_8b_bf16`(17.53 GB) | 32.44 GB | S와 같음 | ComfyUI ≥0.37 | FP8 TE에 문제가 있을 때 |
+| A (2순위) | Comfy-Org int8 DiT + `qwen3vl_8b_int8_convrot` + VAE bf16 | 17.28 GB | 1024² 기준 피크 12–18 GB로 추정. 16 GB 카드 실측은 약 15 GB | cu130 torch, 드라이버 r580+, ComfyUI ≥0.37, **comfy-kitchen ConvRot의 sm_86 동작(미검증)** | 공식 템플릿 기본값. S가 동작한 뒤 속도·디스크 절약용으로 시험 |
 | A' | int8 DiT + `qwen3vl_8b_w4a8` + VAE | 14.24 GB | A보다 낮을 것(추론) | A 조건에 더해 w4a8 커널의 Ampere 동작이 필요(미검증) | 선택 사항 |
 | B | bf16 DiT + int8 TE + VAE | 24.26 GB | 17–21 GB로 추정. TE는 인코딩 후 오프로드 | A와 같음(TE가 ConvRot) | 품질 기준선 비교용 |
-| C (대체) | Abiray 또는 realrebelai Q8_0 GGUF(7.59 / 7.69 GB) + city96 ComfyUI-GGUF + TE(bf16 17.53 GB, 또는 GGUF Q4_K_M 5.03 + mmproj 1.16 GB와 add-on) + VAE | 약 14.5–25.8 GB | DiT 약 7.6 GB, TE는 스왑 | ConvRot 경로를 쓸 수 없을 때. ComfyUI ≥0.37은 여전히 필요 | 드라이버가 580 미만일 때의 대안 |
+| C (대체) | Abiray 또는 AlperKTS Q8_0 GGUF(약 7.6 GB) + stock city96 ComfyUI-GGUF + `qwen3vl_8b_fp8_scaled` TE + VAE | 약 18.9 GB | DiT 약 7.6 GB, TE는 스왑 | ComfyUI ≥0.37. stock city96에서의 끝까지 로드는 미검증. GGUF TE는 검토되지 않은 add-on이 필요해 쓰지 않는다 | 디스크·VRAM을 더 줄이고 싶을 때 |
 | 비권장 | 전체 bf16 동시 상주(33.1 GB), NVFP4, FP8(연산 이득 없음), Nunchaku W4A4(torch 2.12.1 고정, 상주 21.35 GB), 검열 해제 커뮤니티 가중치 | — | — | — | — |
 
 ### 5.3 예상 성능
@@ -398,8 +447,9 @@ HF에서 2026-09-23에 조회했다.
   - Viggle 4-step은 1024²에서 약 6–10 s에 TE·VAE 시간이 더해진다. ComfyUI 로드는 미검증이다.
   - 편집은 TE 인코딩이 병목이다(disc #31).
 - **RAM**
-  - 어떤 단일 구성도 62 GB 안에 들어간다(bf16 세트가 32.4 GB).
+  - 어떤 단일 구성도 62 GB 안에 들어간다(bf16 세트가 32.4 GB, 안 S가 25.5 GB).
   - 로드 중 피크 RAM은 측정되지 않았다.
+  - 단, Forge 배치 중 컨테이너 메모리는 45.57 GB(73.5%), 피크 95.6%(약 59.3 GB)가 관측됐다(`docs/OPERATIONAL_VERIFICATION.md:23`). 오프로드된 DiT·TE가 RAM에 올라가면 62 GB 한도를 넘을 수 있으므로 **Forge 배치와 동시에 돌리지 않는다**(추정).
 
 ### 5.4 MiniMax H3 키트와의 충돌
 - **가중치는 호환되지 않는다.**
@@ -411,7 +461,7 @@ HF에서 2026-09-23에 조회했다.
   - 그러나 H3 모바일 킷은 0.30.0에서만 검증되었고, DaSiWa 노드가 0.37에서 동작하는지는 미검증이다. H3 문서(D16)는 0.30.0 고정을 권하므로 기본은 **분리 운용**이다.
 - **디스크**
   - H3 키트의 모바일 UI 필수 4개는 약 41.74 GB다(`docs/H3_MOBILE_REQUIREMENTS.md` §6.2. fp16 video VAE 기준, DiT 크기는 미검증).
-  - Qwen int8 세트(17.28 GB)를 더하면 약 59.0 GB다. 300 GB 볼륨의 알려진 사용량(약 159 GB)을 고려하면 들어갈 가능성이 높지만, 실제 여유 공간은 확인하지 않았다(H3 문서 §5 디스크 행). H3 문서가 권하는 대로 H3를 새 포드에 두면 3090 포드에는 Qwen 세트만 추가된다.
+  - Qwen 안 S(25.49 GB)를 더하면 약 67.2 GB다(int8 세트 17.28 GB면 약 59.0 GB). 300 GB 볼륨의 알려진 사용량(약 159 GB)을 고려하면 들어갈 가능성이 높지만, 실제 여유 공간은 확인하지 않았다(H3 문서 §5 디스크 행). H3 문서가 권하는 대로 H3를 새 포드에 두면 3090 포드에는 Qwen 세트만 추가된다.
   - 선택 추가분은 bf16 DiT +14.23 GB, PE 파일당 +9.47 GB다.
   - 현재 여유 공간은 확인하지 않았다.
 - **VRAM**: 둘을 동시에 올릴 수 없으므로 순차로 쓴다. H3는 32GB+가 필요해 24 GB에서는 강한 오프로드가 필요하다.
@@ -465,7 +515,7 @@ HF에서 2026-09-23에 조회했다.
 3. **새 venv 경로와 운용 방식**
    - 경로 예: `/workspace/venvs/comfyui-next`
    - 기존 ComfyUI를 새 venv로 재시작할지, 다른 포트에서 병행할지.
-4. **파일 세트**: 기본은 A(17.28 GB). B(bf16 DiT +14.23 GB), PE-T2I·PE-I2I(각 +9.47 GB)를 추가할지.
+4. **파일 세트**: 기본은 S(25.49 GB, 2026-09-24 갱신). S가 동작하면 A(int8, 17.28 GB)를 추가로 시험할지, PE-T2I·PE-I2I(각 +9.47 GB)를 추가할지.
 5. **가중치 출처**: 공식(Qwen, Comfy-Org)과 검증된 GGUF만 쓸 것을 권장한다. 검열 해제·출처 불명 가중치는 제외한다.
 6. **결과물 저장·백업 위치**: 4팀 공유 드라이브는 대상에서 제외한다. 자동 동기화 경로에도 넣지 않는다.
 
@@ -493,10 +543,12 @@ HF에서 2026-09-23에 조회했다.
 
 | 저장 경로 | 파일 | 바이트 |
 |---|---|---|
-| `models/diffusion_models/` | `qwen_image_2.1_int8_convrot.safetensors` | 7,256,783,064 |
-| `models/text_encoders/` | `qwen3vl_8b_int8_convrot.safetensors` | 9,350,798,360 |
-| `models/vae/` | `qwen_image_2.1_vae_bf16.safetensors` | 675,509,688 |
-| **합계** | | **17,283,091,112** |
+| `models/diffusion_models/` | `qwen_image_2.1_bf16.safetensors` (Comfy-Org/Qwen-Image-2.1) | 14,230,280,616 |
+| `models/text_encoders/` | `qwen3vl_8b_fp8_scaled.safetensors` (Comfy-Org/Qwen3-VL) | 10,588,637,512 |
+| `models/vae/` | `qwen_image_2.1_vae_bf16.safetensors` (Comfy-Org/Qwen-Image-2.1) | 675,509,688 |
+| **합계 (안 S)** | | **25,494,427,816** |
+
+- 받은 뒤 sha256을 HF API 값과 비교한다(4.6). DiT는 2026-09-19T10:04Z, VAE는 09-18T14:26Z에 교체됐으므로 그 이전에 받은 사본은 쓰지 않는다(구 DiT 14,230,284,584 B, 구 VAE 675,508,656 B).
 
 - 공개 repo라 토큰이 필요 없다. 토큰을 쓰더라도 환경변수로만 전달한다.
 - TLS 검증과 프록시 설정은 유지한다.
@@ -514,7 +566,7 @@ HF에서 2026-09-23에 조회했다.
 - 모델 캐시를 비우거나 재시작한 뒤 RAM을 확인한다.
 
 ### 7.3 수용 기준
-- 시작 로그에 "You need pytorch with cu130 or higher" 경고가 없다(ConvRot CUDA 백엔드 활성).
+- (안 A를 시험할 때만) 시작 로그에 "You need pytorch with cu130 or higher" 경고가 없다(ConvRot CUDA 백엔드 활성). 안 S는 ConvRot를 쓰지 않는다.
 - 템플릿 3종이 누락 노드 없이 로드된다.
 - 1024², 40 steps T2I가 NaN이나 검은 이미지 없이 생성된다.
   - 피크 VRAM이 24 GB 미만이다(`nvidia-smi` 기록).
